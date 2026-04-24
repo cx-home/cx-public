@@ -312,7 +312,7 @@ go 1.21
 
 require github.com/cx-home/cx/lang/go v0.0.0
 
-replace github.com/cx-home/cx/lang/go => /path/to/cx-public/lang/go/cxlib
+replace github.com/cx-home/cx/lang/go => /path/to/cx/lang/go/cxlib
 ```
 
 Then run it:

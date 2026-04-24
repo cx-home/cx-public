@@ -20,7 +20,7 @@ For a pure V install with no C dependency, use
 make build-vcx
 
 # 2. Point V at the module (add to your shell profile)
-export VMODULES=/path/to/cx-public/lang/v
+export VMODULES=/path/to/cx/lang/v
 
 # 3. Import cxlib in any V file
 v run myapp.v
