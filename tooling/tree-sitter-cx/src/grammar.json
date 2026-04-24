@@ -62,7 +62,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "comment"
+          "name": "comment_element"
         },
         {
           "type": "SYMBOL",
@@ -621,7 +621,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "comment"
+          "name": "comment_element"
         },
         {
           "type": "SYMBOL",
@@ -645,25 +645,70 @@
       "type": "STRING",
       "value": "|"
     },
-    "comment": {
-      "type": "TOKEN",
-      "content": {
-        "type": "SEQ",
-        "members": [
-          {
-            "type": "STRING",
-            "value": "[-"
-          },
-          {
-            "type": "PATTERN",
-            "value": "[^\\]]*"
-          },
-          {
-            "type": "STRING",
-            "value": "]"
+    "comment_element": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "["
+        },
+        {
+          "type": "STRING",
+          "value": "-"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_comment_child"
           }
-        ]
-      }
+        },
+        {
+          "type": "STRING",
+          "value": "]"
+        }
+      ]
+    },
+    "_comment_child": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "comment_element"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "comment_bracket"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "comment_raw"
+        }
+      ]
+    },
+    "comment_bracket": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "["
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_comment_child"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "]"
+        }
+      ]
+    },
+    "comment_raw": {
+      "type": "PATTERN",
+      "value": "[^\\[\\]]+"
     },
     "pi": {
       "type": "TOKEN",
@@ -1092,7 +1137,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "comment"
+          "name": "comment_element"
         },
         {
           "type": "SYMBOL",

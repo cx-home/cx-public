@@ -32,8 +32,22 @@
   ],
   "repository": {
     "comment": {
-      "name": "comment.line.cx",
-      "match": "\\[-[^\\]]*\\]"
+      "name": "comment.block.cx",
+      "begin": "\\[-",
+      "end": "\\]",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#comment-bracket" }
+      ]
+    },
+    "comment-bracket": {
+      "name": "comment.block.cx",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#comment-bracket" }
+      ]
     },
     "raw-text": {
       "name": "string.other.raw.cx",

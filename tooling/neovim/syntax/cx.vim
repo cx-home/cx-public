@@ -4,7 +4,8 @@ if exists("b:current_syntax") | finish | endif
 syn case match
 
 " ── Comments  [- … ] ──────────────────────────────────────────────────────────
-syn match cxComment /\[-[^\]]*\]/
+syn region cxComment       start=/\[-/ end=/\]/ contains=cxComment,cxCommentBracket
+syn region cxCommentBracket start=/\[/  end=/\]/ contains=cxComment,cxCommentBracket contained
 
 " ── Headings  [# …] through [###### …]  (must come before raw-text) ──────────
 " Most-specific patterns first so [######] doesn't match as [#].

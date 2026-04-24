@@ -62,13 +62,24 @@ make build
 ```
 
 This builds the `cx` CLI binary at `vcx/target/cx` and the shared library
-`vcx/target/libcx.dylib` / `vcx/target/libcx.so`.
+`vcx/target/libcx.dylib` / `vcx/target/libcx.so`. Treat `vcx/target/cx` as a
+staging artifact for local builds, not the stable command on your `PATH`.
 
-Add the binary to your PATH:
+Promote a verified CLI build into a stable install location:
 
 ```sh
-export PATH="$PATH:$(pwd)/vcx/target"
+make promote-cli
 ```
+
+That installs `cx` to `/usr/local/bin/cx` by default. Override the install
+prefix if needed:
+
+```sh
+make promote-cli PREFIX="$HOME/.local"
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+`make install` still installs `libcx` and `cx.h`; it does not install the CLI.
 
 ---
 

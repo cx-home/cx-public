@@ -2,12 +2,14 @@
   [book
     [title The Hobbit]
     [author J.R.R. Tolkien]
-    [year :int 1937]
+    [-The year value is read as an int, auto-typed]
+    [year 1937]
     [available true]
   ]
-  [book
+  [-book, lets just comment out this entire element
     [title Dune]
     [author Frank Herbert]
+    [-The year value is manually defined as as int]
     [year :int 1965]
     [available false]
   ]

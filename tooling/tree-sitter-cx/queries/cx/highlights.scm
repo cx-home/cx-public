@@ -85,7 +85,9 @@
 (raw_text) @markup.raw
 
 ; ── Comments ──────────────────────────────────────────────────────────────────
-(comment) @comment
+(comment_element) @comment
+(comment_bracket) @comment
+(comment_raw) @comment
 
 ; ── PI ────────────────────────────────────────────────────────────────────────
 (pi) @keyword.directive

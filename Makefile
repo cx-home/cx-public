@@ -20,7 +20,7 @@ JAVA_HOME_ARM64 := /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Hom
         build-ruby build-go build-typescript build-java build-kotlin build-csharp build-csharp-api build-swift \
         build-lsp build-vscode build-editors \
         publish publish-push \
-        dist install uninstall \
+        dist install uninstall install-cli uninstall-cli verify-cli promote-cli \
         test test-python test-vcx test-rust \
         test-ruby test-ruby-api test-go test-typescript test-java test-kotlin test-csharp test-csharp-api test-swift \
         test-python-api test-python-stream test-v test-vcx-api test-vcx-stream test-typescript-api test-go-api \
@@ -90,6 +90,25 @@ uninstall:
 	rm -f $(PREFIX)/include/cx.h
 	rm -f $(PREFIX)/lib/pkgconfig/cx.pc
 	@echo "uninstalled libcx from $(PREFIX)"
+
+# Install the verified CLI separately from the libcx shared library.
+install-cli: build-vcx
+	install -d $(PREFIX)/bin
+	install -m 755 vcx/target/cx $(PREFIX)/bin/cx
+	@echo "installed cx CLI → $(PREFIX)/bin/cx"
+
+uninstall-cli:
+	rm -f $(PREFIX)/bin/cx
+	@echo "uninstalled cx CLI from $(PREFIX)/bin/cx"
+
+# Smoke-test the staged CLI before promotion.
+verify-cli: build-vcx
+	./vcx/target/cx --help >/dev/null
+	./vcx/target/cx --json examples/config.cx >/dev/null
+	@echo "verified staged CLI at vcx/target/cx"
+
+promote-cli: verify-cli install-cli
+	@echo "promoted verified cx CLI to $(PREFIX)/bin/cx"
 
 # ── Test ───────────────────────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@ module.exports = grammar({
         $.blockquote,
         $.code_block,
         $.block_content,
-        $.comment,
+        $.comment_element,
         $.pi,
         $.raw_text,
         $.alias,
@@ -107,7 +107,7 @@ module.exports = grammar({
         $.element, $.heading, $.bold, $.italic, $.strike,
         $.subscript, $.superscript, $.underline, $.inline_code,
         $.blockquote, $.code_block, $.block_content,
-        $.comment, $.pi, $.raw_text, $.alias
+        $.comment_element, $.pi, $.raw_text, $.alias
       ),
 
     block_text: (_) => /[^|\[]+/,
@@ -115,8 +115,23 @@ module.exports = grammar({
     // "|]" (2 chars) wins over "|" (1 char) at block end — maximal munch.
     block_pipe: (_) => "|",
 
-    // ── Comments  [-…]  and PI  [?…]  (atomic) ───────────────────────────────
-    comment: (_) => token(seq("[-", /[^\]]*/, "]")),
+    // ── Comment element  [-…]  (structural, handles nested elements) ──────────
+    // "[" then "-" discriminates from element (tag_name starts with [a-zA-Z_]).
+    // Uses dedicated internal node types (comment_bracket, comment_raw) so that
+    // ALL content inside a comment highlights as @comment with no bleed-through
+    // from inner element/word/etc. captures.
+    comment_element: ($) =>
+      seq("[", "-", repeat($._comment_child), "]"),
+
+    _comment_child: ($) =>
+      choice($.comment_element, $.comment_bracket, $.comment_raw),
+
+    comment_bracket: ($) =>
+      seq("[", repeat($._comment_child), "]"),
+
+    comment_raw: (_) => /[^\[\]]+/,
+
+    // ── PI  [?…]  (atomic) ────────────────────────────────────────────────────
     pi: (_) => token(seq("[?", /[^\]]*/, "]")),
 
     // ── Alias  [*name]  (atomic — wins over "[" "* …" italic via length) ──────
@@ -199,7 +214,7 @@ module.exports = grammar({
         $.code_block,
         $.block_content,
         $.raw_text,
-        $.comment,
+        $.comment_element,
         $.pi,
         $.alias,
         $.entity_ref,
