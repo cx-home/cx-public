@@ -48,6 +48,7 @@ converts losslessly to and from JSON, YAML, TOML, XML, and Markdown. Multiple AI
 - [Format conversion](#format-conversion)
 - [Language bindings](#language-bindings)
 - [Building from source](#building-from-source)
+- [Why CX? Format comparison](spec/analysis.md)
 
 ---
 

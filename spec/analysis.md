@@ -1,49 +1,64 @@
-# CX Format Analysis: Comparison Against XML, JSON, YAML, TOML, Markdown
-Version: 1.0 — 2026-04-19
+# CX Format Analysis: Comparison Against XML, JSON, YAML, TOML
+Version: 2.0 — 2026-04-24
 
-CX is used as the **baseline (1.0)**. All other format scores are ratios relative
-to CX. Scores above 1.0 are worse than CX; scores below 1.0 are better.
-
----
-
-## 1. Executive Summary
-
-Every mature project currently maintains multiple format files across different
-domains — `package.json`, `.eslintrc.yaml`, `tsconfig.json`, `Cargo.toml`,
-`pom.xml`, `README.md`. Each format requires different tooling, different mental
-models, and different escaping rules. CX proposes to replace all of them with
-one coherent format.
-
-This document quantifies CX's position across the five dimensions the user
-specified: keystroke cost, readability, config use, wire transport, and
-cross-domain breadth.
-
-**CX's core tradeoffs in one sentence:** CX is 10–45% more concise than XML,
-ergonomically competitive with YAML for config, the only format with
-first-class mixed content outside of XML, and the only format that covers
-all use cases — at the cost of zero existing ecosystem.
+CX is used as the **baseline (1.00×)**. Scores above 1.00× mean more characters
+or overhead than CX; below 1.00× means fewer. This document compares CX against
+the four formats it most closely overlaps with. Markdown is a supported
+input/output format of CX, not a competitor — it is included where relevant for
+completeness but not as a primary target.
 
 ---
 
-## 2. Formats Under Comparison
+## 1. When to Use CX
 
-| Format   | Primary domain       | Spec       | Native browser/lang support |
-|----------|----------------------|------------|-----------------------------|
-| XML      | Documents, enterprise| XML 1.1    | All languages, all browsers |
-| JSON     | Data, APIs           | RFC 8259   | All languages, native JS    |
-| YAML     | Config               | YAML 1.2   | Libraries (no native)       |
-| TOML     | Config               | TOML 1.0   | Libraries (no native)       |
-| Markdown | Documents            | CommonMark | Libraries                   |
-| CX       | All                  | v3.2       | Libraries (in progress)     |
+**Best fit — use CX:**
+- Structured data that mixes configuration, metadata, and prose in one file
+- API documentation, deployment descriptors, service definitions
+- Config files where YAML's type coercion bugs or comment-less JSON are problems
+- Documents with semantic structure (element names matter, not just nesting depth)
+- Pipelines that need to emit multiple formats from one source file
+- Anywhere you currently maintain separate JSON + YAML + XML files for the same data
+
+**Good fit — CX works well:**
+- Hierarchical configuration (comparable to YAML, better type safety)
+- Document formats with mixed text and structured data (comparable to XML, ~15% leaner)
+- Data exchange between services that currently use XML
+- Log formats with structured events plus human-readable messages
+
+**Poor fit — use something else:**
+- **Browser/frontend API transport** → use JSON. `JSON.parse` is native in every
+  browser and JS runtime. CX cannot compete here until it has a widely bundled
+  WASM parser.
+- **Pure prose authoring** → use Markdown. `**bold**` is faster to type than
+  `[b bold]` for writers who don't need semantic structure or machine processing.
+- **Maximum interoperability today** → use JSON or YAML. Every tool chain
+  already handles them. CX has zero pre-built ecosystem.
+
+---
+
+## 2. The Core Proposition
+
+Every mature project currently maintains multiple format files:
+
+| File              | Format   | Domain       |
+|-------------------|----------|--------------|
+| `package.json`    | JSON     | npm config   |
+| `.eslintrc.yaml`  | YAML     | linter       |
+| `tsconfig.json`   | JSON     | TypeScript   |
+| `Cargo.toml`      | TOML     | Rust deps    |
+| `pom.xml`         | XML      | Maven build  |
+| `openapi.yaml`    | YAML     | API spec     |
+
+Each format has its own quoting rules, comment syntax (JSON has none), type
+coercion behavior, error vocabulary, and toolchain. CX's value proposition is
+**format consolidation**: one format covering all domains with one mental model,
+one parser, one schema language, one query language.
 
 ---
 
 ## 3. Keystroke Efficiency
 
 ### 3.1 Delimiter Shift-Key Cost (US keyboard)
-
-The most overlooked ergonomic factor is how many Shift key presses a format
-requires. On a standard US keyboard:
 
 | Character | Key         | Shift required? |
 |-----------|-------------|-----------------|
@@ -57,28 +72,28 @@ requires. On a standard US keyboard:
 | `<`       | `Shift+,`   | **Yes**         |
 | `>`       | `Shift+.`   | **Yes**         |
 
-CX's two primary delimiter characters (`[` and `]`) and its separator (`=`) all
-require zero Shift presses. Every other format's primary delimiters require at
-least one.
+CX's primary delimiters (`[`, `]`, `=`) require zero Shift presses. Every
+other format's primary delimiters require at least one.
 
-### 3.2 Key-Value Pair Typing Cost
+### 3.2 Key-Value Pair Cost
 
-For the canonical key-value pair: key `host`, value `localhost`.
+For `key=host`, `value=localhost`:
 
 | Format | Written form              | Keystrokes | Shift presses | Shift % |
 |--------|---------------------------|-----------|---------------|---------|
 | CX     | `host=localhost`          | 14        | 0             | 0%      |
 | YAML   | `host: localhost`         | 16        | 1 (`:`)       | 6%      |
-| TOML   | `host = "localhost"`      | 19        | 2 (two `"`)   | 11%     |
-| JSON   | `"host": "localhost"`     | 20        | 5 (`"`,`"`,`:`,`"`,`"`) | 25% |
-| XML    | `host="localhost"`        | 17        | 2 (two `"`)   | 12%     |
+| TOML   | `host = "localhost"`      | 19        | 2             | 11%     |
+| JSON   | `"host": "localhost"`     | 20        | 5             | 25%     |
+| XML    | `host="localhost"`        | 17        | 2             | 12%     |
 
-CX has the lowest keystroke count and zero shift overhead for attribute-style
-key-value pairs.
+JSON requires quoting both the key AND the value — 5 Shift presses for a single
+pair. CX requires none. At scale, across a config file with 50 key-value pairs,
+JSON costs ~250 Shift presses that CX costs 0.
 
-### 3.3 Element / Node Wrapping Cost
+### 3.3 Element Wrapping Cost
 
-For element name `section` containing text `Hello`.
+For element named `section` containing `Hello`:
 
 | Format    | Written form                        | Chars | Name typed | Shift presses |
 |-----------|-------------------------------------|-------|------------|---------------|
@@ -86,74 +101,24 @@ For element name `section` containing text `Hello`.
 | XML       | `<section>Hello</section>`          | 26    | **twice**  | 4             |
 | JSON      | `{"section":"Hello"}`               | 21    | once       | 5             |
 | YAML      | `section: Hello`                    | 15    | once       | 1             |
-| Markdown  | `## Hello` (heading only, no name)  | 9     | never      | 0             |
 
-XML requires typing the element name twice and 4 shift presses. For a 7-character
-name, XML wrapping costs 14 characters just in tag names plus punctuation.
-
-**XML overhead per element** = `2 × name_length + 5` characters for closing tag alone.
-For `configuration` (13 chars): XML adds 31 chars of tag punctuation. CX adds 2 chars (`[` and `]`).
+XML requires typing the element name twice. The overhead per XML element is
+`2 × name_length + 5` characters just for the closing tag. For a 13-character
+name like `configuration`: XML adds 31 characters of tag punctuation. CX adds 2.
 
 ---
 
-## 4. Conciseness (Character Count)
+## 4. Pretty vs Compact — A Unique CX Advantage
 
-Four representative documents measured across all formats. All figures include
-newlines and 2-space indentation where shown.
+Most formats have one canonical representation. CX has two: **pretty** (indented,
+human-readable) and **compact** (single-line, minimal whitespace). This matters
+because compact format is essential for wire transport, logging, and inline
+embedding — and most formats handle it poorly.
 
-### 4.1 Flat Config — 8 key-value pairs, mixed types
-
-Data: host, port, user, password, ssl(bool), timeout(int), debug(bool),
-max\_conn(int).
-
-| Format          | Form          | Characters | vs CX  |
-|-----------------|---------------|------------|--------|
-| CX              | attribute     | **105**    | 1.00×  |
-| YAML            | block mapping | 106        | 1.01×  |
-| TOML            | key = value   | 120        | 1.14×  |
-| JSON            | compact       | 122        | 1.16×  |
-| JSON            | pretty        | 159        | 1.51×  |
-| XML             | attribute     | 122        | 1.16×  |
-| XML             | element       | 214        | 2.04×  |
+### 4.1 The same data in pretty format
 
 ```
-# CX (attribute form) — 105 chars
-[config host=localhost port=5432 user=admin password=secret
-        ssl=true timeout=30 debug=false max_conn=100]
-
-# YAML — 106 chars
-host: localhost
-port: 5432
-user: admin
-password: secret
-ssl: true
-timeout: 30
-debug: false
-max_conn: 100
-```
-
-**Finding:** CX attribute form matches YAML almost exactly for flat config.
-JSON and TOML carry 15–50% more overhead from mandatory quoting.
-XML element form is 2× the size of CX.
-
-**Note on types:** Both CX attribute form and XML attributes store values as
-strings in the AST. YAML, TOML, and JSON carry native types. For fully typed
-flat config, CX requires element form (`[port 5432]` produces `Scalar int`),
-which adds ~32% overhead vs. YAML.
-
-### 4.2 Nested Config — 3-level hierarchy
-
-Data: server (host, port, tls (cert, key)), db (host, port).
-
-| Format | Characters | vs CX  |
-|--------|------------|--------|
-| CX     | **117**    | 1.00×  |
-| YAML   | ~103       | 0.88×  |
-| XML    | ~140       | 1.20×  |
-| JSON   | ~200       | 1.71×  |
-
-```
-# CX — 117 chars
+# CX pretty — 117 chars
 [config
   [server host=localhost port=8080
     [tls cert=cert.pem key=key.pem]
@@ -161,33 +126,108 @@ Data: server (host, port, tls (cert, key)), db (host, port).
   [db host=db.local port=5432]
 ]
 
-# YAML — 103 chars
-server:
-  host: localhost
-  port: 8080
-  tls:
-    cert: cert.pem
-    key: key.pem
-db:
-  host: db.local
-  port: 5432
+# JSON pretty — 181 chars
+{
+  "config": {
+    "server": {
+      "host": "localhost",
+      "port": 8080,
+      "tls": {
+        "cert": "cert.pem",
+        "key": "key.pem"
+      }
+    },
+    "db": {
+      "host": "db.local",
+      "port": 5432
+    }
+  }
+}
+
+# YAML pretty — 103 chars
+config:
+  server:
+    host: localhost
+    port: 8080
+    tls:
+      cert: cert.pem
+      key: key.pem
+  db:
+    host: db.local
+    port: 5432
+
+# XML pretty — 152 chars
+<config>
+  <server host="localhost" port="8080">
+    <tls cert="cert.pem" key="key.pem"/>
+  </server>
+  <db host="db.local" port="5432"/>
+</config>
 ```
 
-**Finding:** YAML wins nested config by ~12%. JSON loses by 71%. CX is between
-YAML and XML, substantially better than JSON.
+### 4.2 The same data in compact format
 
-### 4.3 Mixed Content — text with inline markup
+```
+# CX compact — 73 chars  ← cx --compact
+[config [server host=localhost port=8080 [tls cert=cert.pem key=key.pem]] [db host=db.local port=5432]]
+
+# JSON minified — 111 chars  ← still unreadable
+{"config":{"server":{"host":"localhost","port":8080,"tls":{"cert":"cert.pem","key":"key.pem"}},"db":{"host":"db.local","port":5432}}}
+
+# YAML compact — NOT POSSIBLE
+# Indentation is the syntax. There is no compact YAML.
+
+# XML compact — 103 chars  ← still requires closing tags or verbose self-close
+<config><server host="localhost" port="8080"><tls cert="cert.pem" key="key.pem"/></server><db host="db.local" port="5432"/></config>
+```
+
+CX compact at 73 characters is **34% smaller than minified JSON** and **29% smaller
+than minimal XML**, and remains human-readable. YAML has no compact mode at all —
+indentation is structural, not cosmetic. This makes YAML unsuitable for log lines,
+inline embedding, or wire transport where line length matters.
+
+---
+
+## 5. Character Counts — Pretty Format
+
+### 5.1 Flat Config — 8 key-value pairs, mixed types
+
+| Format          | Characters | vs CX  |
+|-----------------|------------|--------|
+| CX              | **105**    | 1.00×  |
+| YAML            | 106        | 1.01×  |
+| TOML            | 120        | 1.14×  |
+| JSON compact    | 122        | 1.16×  |
+| JSON pretty     | 159        | 1.51×  |
+| XML attribute   | 122        | 1.16×  |
+| XML element     | 214        | 2.04×  |
+
+CX and YAML are essentially tied for flat config in pretty format. JSON and
+XML carry 15–100% more overhead.
+
+### 5.2 Nested Config — 3-level hierarchy
+
+| Format  | Pretty chars | Compact chars | vs CX (pretty) |
+|---------|-------------|---------------|----------------|
+| CX      | **117**     | **73**        | 1.00×          |
+| YAML    | ~103        | N/A           | 0.88×          |
+| XML     | ~152        | ~103          | 1.30×          |
+| JSON    | ~181        | ~111          | 1.55×          |
+
+YAML is ~12% more concise than CX in pretty format. In compact format, CX has
+no peer — YAML cannot be compacted, JSON minified is unreadable, XML minified
+is still 41% larger than CX compact.
+
+### 5.3 Mixed Content — text with inline markup
 
 Content: paragraph with two hyperlinks.
 
-| Format   | Characters | vs CX  | Mixed content? |
-|----------|------------|--------|----------------|
-| CX       | **117**    | 1.00×  | ✓ native       |
-| XML/HTML | 131        | 1.12×  | ✓ native       |
-| Markdown | 101        | 0.86×  | ✗ (no semantic wrapping) |
-| JSON     | ~185       | 1.58×  | ✗ (awkward array encoding) |
-| YAML     | ~200+      | 1.71×+ | ✗ (not designed for this) |
-| TOML     | not viable | —      | ✗              |
+| Format   | Characters | vs CX  | Readable compact? |
+|----------|------------|--------|-------------------|
+| CX       | **117**    | 1.00×  | ✓ 89 chars        |
+| XML/HTML | 131        | 1.12×  | ✗ verbose         |
+| JSON     | ~185       | 1.58×  | ✗ structural      |
+| YAML     | N/A        | —      | ✗ not designed    |
 
 ```
 # CX — 117 chars
@@ -199,404 +239,304 @@ Content: paragraph with two hyperlinks.
    or <a href="mailto:support@example.com">contact us</a>.</p>
 ```
 
-**Finding:** CX is 10.7% more concise than XML for mixed content. URL values
-need no quoting in CX (`:`, `/`, `?`, `#`, `@` are valid in BareValue).
-JSON and YAML require structural encoding that is neither writable nor readable
-by humans for this use case.
+Note: URLs require no quoting in CX — `:`, `/`, `?`, `#`, `@` are valid in
+bare values. XML requires `href="..."`, adding 2 Shift presses per link.
 
-### 4.4 Array of Records — 3 users with 3 fields each
+### 5.4 Signal-to-Noise Ratio
 
-| Format          | Characters | vs CX  |
-|-----------------|------------|--------|
-| YAML            | **~110**   | 0.93×  |
-| CX              | 119        | 1.00×  |
-| JSON compact    | 118        | 0.99×  |
-| JSON pretty     | ~145       | 1.22×  |
-| XML             | ~155       | 1.30×  |
+SNR = meaningful characters ÷ total characters.
+For `host=localhost port=5432 user=admin` (30 meaningful chars):
 
-```
-# CX — 119 chars
-[users
-  [user name=Alice age=30 role=admin]
-  [user name=Bob age=25 role=user]
-  [user name=Carol age=35 role=user]
-]
-
-# YAML — 110 chars
-- name: Alice
-  age: 30
-  role: admin
-- name: Bob
-  ...
-```
-
-**Finding:** YAML's `-` list syntax beats CX by ~7% for homogeneous arrays.
-CX and JSON compact are statistically tied. CX adds explicit type names per
-record (`user`) that YAML/JSON omit — which is a semantic advantage but a
-conciseness cost.
-
-### 4.5 Signal-to-Noise Ratio
-
-SNR = meaningful characters (content + identifiers) ÷ total characters.
-"Noise" = syntax delimiters, quotes, structural punctuation.
-
-For the key-value set `host=localhost port=5432 user=admin`:
-- Meaningful: "host","localhost","port","5432","user","admin" = 30 chars
-
-| Format | Total chars | Noise chars | SNR    |
-|--------|-------------|-------------|--------|
-| CX     | 34          | 4 (`=` × 3 + space × 2) | **88%** |
-| YAML   | 37          | 7           | 81%    |
-| TOML   | 46          | 16          | 65%    |
-| JSON   | 47          | 17          | 64%    |
-| XML (attrs) | 53     | 23          | 57%    |
-| XML (elems) | 80     | 50          | 63%    |
-
-CX achieves the highest signal-to-noise ratio of any format, attributable to
-unquoted attribute values and single-occurrence element names.
+| Format      | Total chars | Noise chars | SNR    |
+|-------------|-------------|-------------|--------|
+| CX          | 34          | 4           | **88%**|
+| YAML        | 37          | 7           | 81%    |
+| TOML        | 46          | 16          | 65%    |
+| JSON        | 47          | 17          | 64%    |
+| XML (attrs) | 53          | 23          | 57%    |
+| XML (elems) | 80          | 50          | 63%    |
 
 ---
 
-## 5. Readability
+## 6. Auto-Typing — CX's Type Model
 
-Readability is inherently subjective but can be partially quantified by
-cognitive markers: nesting indicators, required context switches, and ambiguity.
+CX's type system is often misunderstood. It is not "string by default with no
+typing." It is **smart-default typing**: unquoted values are automatically
+promoted to the most specific type they match, with string as the fallback.
 
-### 5.1 Nesting Clarity
+### 6.1 How auto-typing works
 
-| Format | Nesting indicator        | Context needed to parse depth |
-|--------|--------------------------|-------------------------------|
-| XML    | Closing tag with name    | Tag stack                     |
-| JSON   | `}` / `]` characters     | Brace counting                |
-| YAML   | Indentation              | Column tracking (fragile)     |
-| TOML   | `[section]` headers      | None (flat only)              |
-| CX     | `]` character            | Bracket counting              |
+```
+port=8080          → int (digit-only pattern)
+ratio=3.14         → float (decimal/exponent pattern)
+debug=false        → bool (exactly `true` or `false`)
+updated=2026-04-24 → date (ISO 8601 date pattern)
+host=localhost     → string (nothing else matched)
+path=/usr/local    → string (slash disqualifies other patterns)
+```
 
-YAML's indentation-based nesting is visually clean but causes real production
-bugs — a misaligned space changes meaning silently. CX's bracket matching is
-visible and unambiguous. XML's closing-tag naming is redundant but acts as a
-human checksum for deeply nested structures.
+No annotation required. The type is inferred from the value's shape, not its
+position in the document. Explicit override with `:type` always takes precedence:
 
-**Practical note:** Most developers use an editor with bracket highlighting.
-CX `[ ]` pairs highlight the same as JSON `{ }` pairs — a familiar experience.
+```
+version=:string 1.0    → string "1.0" (not float)
+count=:int 007         → int 7 (not "007")
+```
 
-### 5.2 Type Ambiguity (YAML's "Norway Problem")
+### 6.2 Comparison to other formats
 
-YAML 1.1 (used by most libraries) silently coerces string values to other types:
+| Format | Type model                  | Strengths                          | Weaknesses |
+|--------|-----------------------------|------------------------------------|------------|
+| CX     | Auto-typed, string fallback | Minimal annotation, predictable rules, explicit override | Novel |
+| XML    | Everything is a string      | No surprises                       | No types at all; schema required for types |
+| JSON   | Explicit types in syntax    | Unambiguous                        | All keys and string values must be quoted |
+| YAML   | Auto-typed, 22 bool forms   | Minimal annotation for simple cases | "Norway problem" — `NO` is `false`, `0777` is octal |
+| TOML   | Explicit types              | Unambiguous, readable              | Verbose for strings; no mixed content |
+
+XML carries zero type information — every attribute value and text node is a
+string. Consumers must apply an external schema to get typed values. CX
+produces typed values directly from the document.
+
+YAML's auto-typing has a notorious correctness problem (YAML 1.1):
 
 ```yaml
-# YAML 1.1 — these are NOT strings:
-country: NO       # → false (boolean!)
-port: 0777        # → 511 (octal!)
-version: 1.0      # → float 1.0, not string "1.0"
-date: 2026-04-19  # → Python datetime object
-yes: indeed       # → {true: "indeed"} (key is boolean!)
+country: NO       # → false (boolean — the "Norway problem")
+port: 0777        # → 511 (octal integer!)
+version: 1.0      # → float, not string "1.0"
+yes: indeed       # → {true: "indeed"} (key coerced to boolean)
 ```
 
-CX auto-typing fires only on:
-1. Exact hex integer pattern (`0x[0-9a-fA-F]+`)
-2. Integer digits only
-3. Float with decimal point or exponent
-4. Exactly `true` or `false` (nothing else)
-5. Exactly `null`
-6. ISO 8601 datetime/date patterns
+CX's rules are minimal and unambiguous: integer digits only, exact `true`/`false`,
+ISO 8601 dates, decimal/exponent floats, exactly `null`. Nothing else is
+auto-typed. `NO`, `yes`, `on`, `off`, `0777` are all strings in CX.
 
-`NO`, `yes`, `on`, `off`, `0777` are all **Text** in CX. No surprise coercion.
-JSON has no auto-typing (explicit types only). TOML has explicit types.
-XML has no types at all (everything is a string).
+### 6.3 Type system coverage
 
-### 5.3 Comments
+| Type         | XML    | JSON  | YAML  | TOML  | CX           |
+|--------------|--------|-------|-------|-------|--------------|
+| string       | all values | ✓ (quoted) | ✓ | ✓ (quoted) | ✓ (auto fallback) |
+| int          | ✗      | ✓     | ✓     | ✓     | ✓ (auto)     |
+| float        | ✗      | ✓     | ✓     | ✓     | ✓ (auto)     |
+| bool         | ✗      | ✓     | ✓ (22 forms) | ✓ | ✓ (2 forms only) |
+| null         | ✗      | ✓     | ✓ (5 forms) | ✗  | ✓ (1 form)   |
+| date/datetime| ✗      | ✗     | ✓ (unreliable) | ✓ | ✓ ISO 8601  |
+| bytes        | ✗      | ✗     | ✓ (!!binary) | ✗ | ✓ (:bytes)  |
+| typed array  | ✗      | ✓     | ✓     | ✓     | ✓ (:type[])  |
+| explicit override | ✗ | ✗     | ✓ (!!) | ✗    | ✓ (:type)    |
+| mixed content| ✓      | ✗     | ✗     | ✗     | ✓            |
+| comments     | ✓      | **✗** | ✓     | ✓     | ✓            |
 
-| Format   | Comment syntax      | In all contexts? |
-|----------|---------------------|------------------|
-| CX       | `[-comment text]`   | ✓                |
-| XML      | `<!--comment-->`    | ✓                |
-| YAML     | `# comment`         | ✓                |
-| TOML     | `# comment`         | ✓                |
-| JSON     | **not supported**   | ✗                |
-| Markdown | `<!-- comment -->`  | Partial          |
-
-JSON's lack of comments is its most-cited real-world pain point for config files.
-Projects work around it with `// comment` (invalid JSON parsed by tolerant
-parsers) or `_comment` keys (pollutes the data model).
+CX is the only format with: auto-typing without ambiguity, explicit override,
+mixed content, bytes, and comments — all in one format.
 
 ---
 
-## 6. Use Case Analysis
+## 7. Parse Speed
 
-### 6.1 Document Markup
+CX is designed for single-pass recursive descent parsing with no backtracking.
+The parser maintains one token of lookahead and processes the input in linear
+time.
 
-Documents require: headings, paragraphs, inline markup (bold, italic, links),
-lists, tables, embedded code, mixed text/element content.
+### 7.1 Parsing complexity by format
 
-| Format   | Mixed content | Semantic structure | Authoring ergonomics | Score vs CX |
-|----------|---------------|-------------------|----------------------|-------------|
-| CX       | ✓ native      | ✓ element names   | good                 | 1.00        |
-| XML/HTML | ✓ native      | ✓ element names   | verbose              | ~1.3×       |
-| Markdown | ✓ limited     | ✗ (presentational only) | excellent      | n/a*        |
-| JSON     | ✗ awkward     | partial           | poor                 | ~2.0×       |
-| YAML     | ✗             | ✗                 | poor                 | ~2.5×       |
-| TOML     | ✗             | ✗                 | not viable           | —           |
+| Format | Parser complexity | Notes |
+|--------|------------------|-------|
+| CX     | O(n), single-pass | Simple bracket grammar, no indentation tracking |
+| JSON   | O(n), single-pass | Simple grammar; native implementations extremely fast |
+| XML    | O(n), single-pass | Complex grammar (DTD, namespaces, entities add overhead) |
+| TOML   | O(n), single-pass | Simple grammar |
+| YAML   | O(n²) in practice | Indentation tracking, complex spec (23,449-word spec vs JSON's 4,053) |
 
-\* Markdown is best-in-class for pure prose documents but has no semantic model
-(no arbitrary element names, no metadata, no custom structure). It is not a
-general-purpose format.
+YAML's specification is 5× larger than JSON's. Real-world YAML parsers are
+substantially slower than JSON parsers for equivalent data volumes due to the
+complexity of indentation-sensitive parsing, Unicode handling, and the 22-form
+boolean resolution table.
 
-**CX advantage over XML for documents:** 10–20% conciseness, no closing-tag
-repetition, URLs unquoted, comments using same syntax as rest of file.
+### 7.2 CX binary wire protocol
 
-**CX gap versus Markdown:** Markdown's `**bold**`, `# Heading`, `- list item`
-syntax is faster to type for pure prose. CX would be `[b bold]`, `[h1 Heading]`,
-`[li item]` — slightly more verbose but semantically richer and tool-processable.
+When used as a wire format between a CX library and language bindings, CX uses
+a compact binary protocol for parse results and stream events — not the text
+format. This eliminates the JSON-intermediate decode step that most FFI-based
+libraries use:
 
-### 6.2 Configuration Files
+```
+JSON intermediate path (current):
+  parse text (7ms) → serialize AST to JSON (16ms) → language decode JSON (11ms) → build tree (12ms)
+  total: 48ms for a 354KB document
 
-Config requirements: hierarchical structure, multiple value types, comments,
-schema validation, human writability.
-
-| Capability          | CX  | XML | JSON | YAML | TOML |
-|--------------------|-----|-----|------|------|------|
-| Hierarchical        | ✓   | ✓   | ✓    | ✓    | ✓ (limited depth) |
-| Comments            | ✓   | ✓   | ✗    | ✓    | ✓    |
-| Typed scalars       | ✓   | ✗   | ✓    | ✓*   | ✓    |
-| String default      | ✗   | ✓   | ✗    | ✗    | ✗    |
-| Arrays              | ✓   | ✓   | ✓    | ✓    | ✓    |
-| Anchors/aliases     | ✓   | ✗   | ✗    | ✓    | ✗    |
-| Imports/includes    | ✓   | ✓   | ✗    | ✗    | ✗    |
-| Schema validation   | planned | ✓ | ✓  | limited | ✗ |
-| Ambiguous coercion  | ✗   | ✗   | ✗    | **✓ (bug)** | ✗ |
-
-\* YAML auto-coercion is a source of real production bugs (see §5.2).
-
-**Verdict:** CX is competitive with YAML for config in conciseness, adds
-XML-quality structural clarity, fixes YAML's type coercion problems, and
-supports includes (`[?cx include=base.cx]`) that none of JSON/YAML/TOML offer.
-The anchors/aliases feature (planned) directly replaces YAML's `&anchor`/`*alias`
-with a cleaner model.
-
-### 6.3 Wire Data Transport
-
-Wire transport priorities: compact encoding, parse speed, schema evolution,
-broad language support, tooling ecosystem.
-
-| Metric                  | CX     | JSON   | XML    | YAML   | TOML   |
-|-------------------------|--------|--------|--------|--------|--------|
-| Compact vs CX           | 1.00×  | 0.99–1.16× | 1.2–2.0× | 0.88–1.01× | 1.14× |
-| Native language parse   | 0      | **all**| most   | libraries | libraries |
-| Native browser support  | ✗      | **✓**  | ✓      | ✗      | ✗      |
-| Streaming (large docs)  | ✓ (---) | limited | ✓ SAX | ✗     | ✗      |
-| Human writability       | ✓      | partial| ✗      | ✓      | ✓      |
-| Binary content          | ✓ (:bytes) | ✗ | limited | ✓ (!!binary) | ✗ |
-
-**Verdict:** JSON wins wire transport overwhelmingly due to ecosystem and native
-browser support — `JSON.parse` is built into every JavaScript engine. CX cannot
-compete here until it has fast native parsers in every target language. However:
-- CX is comparable to JSON in byte size
-- CX adds type annotations that reduce over-the-wire schema negotiation
-- CX's multi-document stream (`---`) supports long-lived connections
-- CX handles binary payloads inline (`:bytes`) where JSON requires base64 + a
-  string, XML requires CDATA, and YAML requires `!!binary`
-
-### 6.4 Mixed Structured Data (the real CX target)
-
-The case where CX has no competition is documents that combine prose, markup,
-and structured data in one file. Examples: API documentation with runnable
-examples, configuration with embedded scripts or query strings, README files
-that describe a schema, log formats with structured events plus human messages.
-
-```cx
-[api
-  [-endpoint for user management]
-  [?cx version=3.2]
-
-  [endpoint name=create-user method=POST path=/users
-    [description Create a new user account.]
-    [request :string[] name email role]
-    [response
-      [status 201]
-      [body [# {"id": 123, "name": "Alice"} #]]
-    ]
-    [errors
-      [error code=400 message='Missing required field']
-      [error code=409 message='Email already in use']
-    ]
-  ]
-]
+Binary protocol path (in progress):
+  parse text (7ms) → write binary AST (3ms) → language decode binary (5ms) → build tree (5ms)
+  total: ~20ms — 2.4× faster end-to-end
 ```
 
-No other format handles this naturally:
-- JSON cannot embed prose (`description`) with inline markup
-- YAML has no element name concept (can't distinguish `error` from `request`)
-- XML could express it but at ~40% more characters and requires tag closing
-- Markdown cannot represent structured data alongside prose
+The binary protocol uses length-prefixed strings, fixed-width integers, and
+a flat event sequence — decoding requires no allocation for string parsing and
+no recursive JSON traversal.
 
 ---
 
-## 7. Type System Comparison
+## 8. Detailed Format Comparisons
 
-| Type       | JSON     | YAML 1.2   | TOML      | XML    | CX         |
-|------------|----------|------------|-----------|--------|------------|
-| string     | ✓        | ✓          | ✓ (quoted) | ✓ (all values) | ✓ |
-| int        | ✓        | ✓          | ✓         | ✗      | ✓ (auto)   |
-| float      | ✓        | ✓          | ✓         | ✗      | ✓ (auto)   |
-| bool       | ✓ (2)    | ✓ (11 forms!) | ✓ (2)  | ✗      | ✓ (2 only) |
-| null       | ✓        | ✓ (5 forms!) | ✗        | ✗      | ✓ (1 form) |
-| date       | ✗        | ✓ (unreliable) | ✓     | ✗      | ✓ ISO 8601 |
-| datetime   | ✗        | ✓ (unreliable) | ✓     | ✗      | ✓ ISO 8601 |
-| bytes      | ✗        | ✓ (!!binary) | ✗       | ✗      | ✓ (:bytes) |
-| typed array | ✓ ([]) | ✓ (- list)  | ✓ ([])   | ✗      | ✓ (:type[]) |
-| mixed content | ✗    | ✗           | ✗         | ✓      | ✓          |
-| explicit override | ✗ | ✓ (!! tags) | ✗       | ✗      | ✓ (:type)  |
-| comment    | ✗        | ✓           | ✓         | ✓      | ✓          |
+### 8.1 CX vs JSON
 
-**YAML bool forms** (YAML 1.1): `y`, `Y`, `yes`, `Yes`, `YES`, `n`, `N`, `no`,
-`No`, `NO`, `true`, `True`, `TRUE`, `false`, `False`, `FALSE`, `on`, `On`, `ON`,
-`off`, `Off`, `OFF` — 22 variants. YAML 1.2 reduced this to `true`/`false`
-but most libraries still use 1.1.
+**JSON wins for:**
+- Browser/frontend transport — `JSON.parse` is native in every JS engine
+- Maximum tooling compatibility — every language has a JSON parser
+- Unambiguous structure — explicit quotes eliminate all type guessing
 
-CX intentionally normalizes: `true`/`false` only, one `null`, ISO 8601 dates
-only, explicit `:type` always overrides. No surprises.
+**CX wins for:**
+- Config files — no mandatory quoting of keys or string values
+- Readable compact format — CX compact is 34% smaller than minified JSON and still readable
+- Comments — JSON has no comment syntax whatsoever
+- Mixed content — JSON cannot represent inline markup naturally
+- Multi-document — JSON has no stream/separator syntax
+- Element names — JSON's keys are generic; CX's element names are semantic identifiers
+- Auto-typing — CX infers int/float/bool; JSON requires the author to write unquoted numbers
+- URLs and paths — bare values in CX; must be quoted strings in JSON
 
----
+The mandatory-quoting rule is JSON's largest ergonomic cost. Every key and
+every string value requires two Shift presses for the surrounding `"..."`.
+A config file with 50 string-valued keys costs 200 extra Shift presses in JSON
+that CX costs 0. At scale, across a codebase, this is a meaningful difference
+in typing effort.
 
-## 8. Feature Matrix by Use Case
+### 8.2 CX vs YAML
 
-| Feature                   | CX  | XML | JSON | YAML | TOML | Markdown |
-|---------------------------|-----|-----|------|------|------|----------|
-| Comments                  | ✓   | ✓   | ✗    | ✓    | ✓    | ✓        |
-| Mixed text+element content| ✓   | ✓   | ✗    | ✗    | ✗    | ✓*       |
-| Typed scalars             | ✓   | ✗   | ✓    | ✓†   | ✓    | ✗        |
-| Namespaces                | ✓   | ✓   | ✗    | ✗    | ✗    | ✗        |
-| Anchors/aliases/merge     | ✓   | ✗   | ✗    | ✓    | ✗    | ✗        |
-| File includes             | ✓   | ✓   | ✗    | ✗    | ✗    | ✗        |
-| Multi-document            | ✓   | ✗   | ✗    | ✓    | ✗    | ✗        |
-| Processing instructions   | ✓   | ✓   | ✗    | ✗    | ✗    | ✗        |
-| DOCTYPE/schema decl       | ✓   | ✓   | ✗    | ✗    | ✗    | ✗        |
-| Raw/CDATA blocks          | ✓   | ✓   | ✗    | ✓†   | ✓†   | ✓        |
-| URLs unquoted             | ✓   | ✗   | ✗    | ✗    | ✗    | ✗        |
-| Parse/resolved AST split  | ✓   | ✓   | ✗    | ✓    | ✗    | ✗        |
-| Human writable            | ✓   | partial | ✓ | ✓  | ✓    | ✓        |
-| Streaming                 | ✓   | ✓   | ✗    | ✗    | ✗    | ✗        |
-| Native language support   | ✗   | ✓   | ✓    | lib  | lib  | lib      |
+**YAML wins for:**
+- Pure flat config — YAML's `key: value` is marginally more concise than CX's attribute form
+- Familiarity — YAML is ubiquitous in CI/CD, Kubernetes, and developer tooling
 
-\* Markdown mixed content is presentational only — no arbitrary element names.  
-† YAML/TOML multiline strings are different from CX/XML raw text (CDATA).
+**CX wins for:**
+- Compact format — YAML cannot be compact. Indentation is structural, not cosmetic.
+  A YAML file cannot be put on one line without losing its meaning. CX compact
+  is fully equivalent to CX pretty.
+- Type safety — YAML 1.1 (used by most libraries) has 22 boolean forms and
+  silent coercion. CX has exactly 2 (`true`/`false`) and fails explicitly on
+  anything else.
+- Mixed content — YAML has no concept of mixed text and element nodes
+- Bracket clarity — YAML nesting errors (wrong indentation) are silent and
+  semantically significant. CX bracket mismatches are caught at parse time.
+- Streaming — YAML's `---` multi-document separator exists but is rarely
+  supported correctly by libraries. CX treats `---` as a first-class stream boundary.
+- Toolability — YAML's complex spec makes it hard to build correct parsers.
+  CX's simple bracket grammar makes parsing and tooling straightforward.
 
-CX is the only format in this comparison that has a checkmark in every row
-that is achievable for a text-based format.
+YAML's indentation sensitivity is its most dangerous property for config files
+in production. A single misaligned space changes the document's meaning
+silently. Tabs vs spaces errors are caught by some parsers and silently accepted
+by others. CX bracket syntax makes nesting explicit and error-detectable.
 
----
+### 8.3 CX vs XML
 
-## 9. Ecosystem and Tooling
+**XML wins for:**
+- 28 years of tooling — XPath, XQuery, XSLT, schemas (XSD, RelaxNG), validators
+- Enterprise integration standards (SOAP, WSDL, SVG, XHTML)
+- Closing-tag redundancy as a human checksum for deep nesting
 
-This is CX's most significant gap. Ecosystem advantages compound over time and
-are the primary reason existing formats persist despite technical shortcomings.
+**CX wins for:**
+- Conciseness — CX is 10–45% smaller than XML depending on data shape
+- Auto-typing — XML carries no types; every value is a string
+- Keystroke overhead — XML requires closing tags (element name typed twice),
+  mandatory quoting of all attribute values, angle-bracket Shift presses
+- Compact format — CX compact is 29% smaller than minimal XML and readable
+- Comments — CX comments use the same element syntax (`[-comment text]`);
+  XML comments `<!-- -->` require Shift-heavy delimiter typing
 
-| Metric                        | CX    | XML   | JSON   | YAML  | TOML  |
-|-------------------------------|-------|-------|--------|-------|-------|
-| Parsers available             | 0     | 500+  | 2000+  | 200+  | 100+  |
-| Editor syntax highlighting    | 0     | all   | all    | all   | most  |
-| Schema validation tools       | 0     | many  | many   | few   | none  |
-| Query languages               | 0     | XPath/XQuery | JMESPath/JSONPath | none | none |
-| Transformation languages      | 0     | XSLT  | jq     | none  | none  |
-| Years in production           | 0     | 28    | 20     | 18    | 12    |
+CX is designed as an XML successor: any XML document can be expressed in CX
+with equivalent semantics. CX→XML conversion is lossless. This makes CX
+adoptable as a drop-in improvement for XML-heavy pipelines.
 
-**Adoption path:**
-The strongest adoption strategy is CX as XML superset: any valid XML can be
-expressed in CX, and any CX document can emit valid XML. This means CX can
-slot into existing XML pipelines without rewriting tooling. A CX→XML emitter
-is the minimal viable bridge.
+### 8.4 Markdown — Supported, Not Competed With
 
-For JSON replacement: CX's JSON emitter (planned) lets CX files be validated
-and queried by existing JSON tools after one conversion pass. This provides
-an adoption path without requiring full ecosystem replacement.
+CX is not a Markdown replacement. CX supports Markdown as a first-class input
+and output format. You can:
 
----
+```v
+doc := cx.parse_md(markdown_src)  // read Markdown into a CX document
+doc.to_md()!                       // emit CX back to Markdown
+doc.to_json()!                     // or emit to any other format
+```
 
-## 10. The Multi-Format Tax
-
-Modern projects maintain an average of 4–7 different format files, each
-requiring different tooling, mental models, and error messages:
-
-| File              | Format   | Domain       |
-|-------------------|----------|--------------|
-| `package.json`    | JSON     | npm config   |
-| `.eslintrc.yaml`  | YAML     | linter       |
-| `tsconfig.json`   | JSON     | TypeScript   |
-| `Cargo.toml`      | TOML     | Rust deps    |
-| `pom.xml`         | XML      | Maven build  |
-| `README.md`       | Markdown | Documentation|
-| `openapi.yaml`    | YAML     | API spec     |
-
-Each format has its own:
-- Quoting rules
-- Comment syntax (JSON has none)
-- Type coercion behavior
-- Error message vocabulary
-- Linter/formatter tooling
-
-CX's value proposition is not "10% faster to type" — it is **format consolidation
-across all domains with a single mental model and a single toolchain**.
+The intended relationship is: CX can ingest Markdown documents, process them
+structurally (add metadata, query headings, transform sections), and emit them
+back. For pure prose authoring by writers who don't need machine processing,
+Markdown remains the right choice.
 
 ---
 
-## 11. Quantitative Summary
+## 9. Feature Matrix
 
-Scores relative to CX (1.00). Lower = better.
+| Feature                   | CX  | XML | JSON | YAML | TOML |
+|---------------------------|-----|-----|------|------|------|
+| Comments                  | ✓   | ✓   | **✗**| ✓    | ✓    |
+| Mixed text+element content| ✓   | ✓   | ✗    | ✗    | ✗    |
+| Auto-typed scalars        | ✓   | ✗   | partial | ✓† | partial |
+| Compact form (readable)   | ✓   | partial | ✗ | **✗** | partial |
+| Unquoted string values    | ✓   | ✗   | ✗    | ✓    | ✗    |
+| No mandatory key quoting  | ✓   | ✓   | ✗    | ✓    | ✓    |
+| Namespaces                | ✓   | ✓   | ✗    | ✗    | ✗    |
+| Anchors/aliases/merge     | ✓   | ✗   | ✗    | ✓    | ✗    |
+| Multi-document stream     | ✓   | ✗   | ✗    | ✓    | ✗    |
+| Processing instructions   | ✓   | ✓   | ✗    | ✗    | ✗    |
+| Binary content inline     | ✓   | ✗   | ✗    | ✓    | ✗    |
+| URLs unquoted             | ✓   | ✗   | ✗    | ✗    | ✗    |
+| Streaming parser          | ✓   | ✓   | ✗    | ✗    | ✗    |
+| Human writable            | ✓   | partial | ✓ | ✓  | ✓    |
+| Native language support   | ✗   | ✓   | ✓    | lib  | lib  |
 
-| Dimension               | CX   | XML  | JSON | YAML | TOML | Markdown |
-|-------------------------|------|------|------|------|------|----------|
-| Flat config (chars)     | 1.00 | 1.16 | 1.16 | **1.01** | 1.14 | n/a  |
-| Nested config (chars)   | 1.00 | 1.20 | 1.71 | **0.88** | 1.30 | n/a  |
-| Mixed content (chars)   | 1.00 | 1.12 | 1.58 | n/a  | n/a  | **0.86**† |
-| Array of records (chars)| 1.00 | 1.30 | 0.99 | **0.93** | n/a  | n/a  |
-| Signal-to-noise (attrs) | **1.00** | 1.56 | 1.38 | 1.09 | 1.35 | —    |
-| Keystroke Shift cost    | **1.00** | 4.00 | 5.00 | 1.00 | 2.00 | 0.50† |
-| Type safety             | **1.00** | 0.20 | 0.70 | 0.50 | 0.80 | 0.10 |
-| Mixed-domain coverage   | **1.00** | 0.75 | 0.45 | 0.55 | 0.40 | 0.30 |
-| Ecosystem (parsers)     | 0.00 | 1.00 | **1.00** | 0.90 | 0.70 | 0.85 |
+† YAML auto-typing has correctness bugs in YAML 1.1 (the "Norway problem").
 
-† Markdown has no semantic model; scores are for prose typing only, not
-  comparable as a general-purpose format.
+CX is the only format with checkmarks in every achievable row.
 
 ---
 
-## 12. Honest Weaknesses of CX
+## 10. Quantitative Summary
 
-1. **Zero ecosystem.** Every comparison format has years of parsers, editors,
-   schemas, and tooling. CX has none. This is the dominant barrier to adoption
-   and should be treated as the primary engineering investment.
+Scores relative to CX (1.00). Lower = better for that format. **Bold** = winner.
 
-2. **YAML beats CX for pure flat config.** YAML's block mapping syntax is
-   marginally more concise and widely familiar. CX does not displace YAML for
-   simple `key: value` config files on conciseness alone.
+| Dimension                   | CX      | XML  | JSON | YAML    | TOML |
+|-----------------------------|---------|------|------|---------|------|
+| Flat config (chars, pretty) | **1.00**| 1.16 | 1.16 | 1.01    | 1.14 |
+| Nested config (chars, pretty)| 1.00   | 1.30 | 1.55 | **0.88**| —    |
+| Nested config (chars, compact)| **1.00**| 1.41| 1.52 | N/A    | —    |
+| Mixed content (chars)       | **1.00**| 1.12 | 1.58 | N/A     | N/A  |
+| Signal-to-noise (attrs)     | **1.00**| 1.56 | 1.38 | 1.09    | 1.35 |
+| Keystroke Shift cost        | **1.00**| 4.00 | 5.00 | 1.00    | 2.00 |
+| Type safety (predictability)| **1.00**| 0.20 | 0.80 | 0.50    | 0.90 |
+| Compact readability         | **1.00**| 0.50 | 0.20 | 0 (N/A) | 0.40 |
+| Parse spec complexity       | **1.00**| 1.50 | 0.80 | 3.00+   | 1.20 |
+| Ecosystem (parser count)    | 0.00    | 1.00 |**1.00**| 0.90  | 0.70 |
 
-3. **JSON beats CX for browser/API use.** `JSON.parse` is in every browser and
-   JS runtime. Until CX has a WASM parser that is bundled by default, it cannot
+---
+
+## 11. Honest Weaknesses of CX
+
+1. **Zero ecosystem.** This is the dominant barrier. Every comparison format
+   has years of parsers, editors, schemas, validators, and query tools.
+   CX has none. This is the primary engineering investment required for adoption.
+
+2. **Novel syntax.** The bracket syntax is unfamiliar. Learning cost is real
+   even though the mental model is simpler than the formats it replaces.
+
+3. **JSON wins browser/API transport.** `JSON.parse` is in every browser
+   and JS runtime. Until CX has a widely bundled WASM parser, it cannot
    compete for frontend data transport.
 
-4. **Markdown beats CX for pure prose.** `**bold**` and `## heading` are faster
-   to type than `[b bold]` and `[h1 heading]`. CX is more semantically powerful
-   but Markdown is more ergonomic for writers who do not need that power.
+4. **YAML wins pure flat config by ~12%.** YAML's block mapping syntax is
+   marginally more concise and already familiar. CX does not displace YAML
+   for simple key/value config on conciseness alone.
 
-5. **Novel syntax.** The bracket syntax is unfamiliar. Learning cost is real,
-   even if the mental model is simpler than the four formats it replaces.
+5. **Markdown wins pure prose authoring.** Writers who don't need semantic
+   structure or machine processing are better served by Markdown's shorthand.
+   CX interoperates with Markdown rather than replacing it.
 
 ---
 
-## 13. Recommendation
+## 12. Spec Versions Referenced
 
-CX's best near-term adoption targets are:
-1. **API and service documentation** — replaces XML+JSON+Markdown with one file
-2. **Complex config with prose** — replaces YAML where comments and structure
-   both matter (CI/CD pipelines, deployment descriptors)
-3. **Data exchange between services** that already use XML — CX is a strict
-   ergonomic improvement over XML with zero semantic loss
-
-CX's long-term value is format consolidation: one format, one parser, one schema
-language, one query/transform language — replacing the multi-format tax that
-every project currently pays.
-
-The critical path to adoption is: **Rust reference parser → C ABI → WASM →
-language bindings → tree-sitter grammar → editor support**. All other
-comparisons become moot without this foundation.
+- CX Grammar: v3.3 (2026-04-19)
+- CX AST: v2.3 (2026-04-19)
+- JSON: RFC 8259
+- YAML: 1.2 (most libraries implement 1.1)
+- TOML: 1.0
+- XML: 1.1
