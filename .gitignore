@@ -12,7 +12,8 @@ vcx/cx/*.dylib
 vcx/cx/*.so
 lang/rust/cxlib/target/
 
-# compiled V binaries in example dirs
+# compiled V binaries
+vcx/tests/conformance_run
 lang/v/examples/transform
 lang/v/examples/demo
 
