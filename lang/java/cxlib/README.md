@@ -1,6 +1,6 @@
 # CX — Java
 
-Java binding for the [CX](https://github.com/cx-home/cx-public) format library via JNA.
+Java binding for the [CX](https://github.com/cx-home/cx) format library via JNA.
 Parse, query, mutate, stream, and convert CX/XML/JSON/YAML/TOML/Markdown — all from Java.
 
 ## Requirements

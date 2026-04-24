@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	cxlib "github.com/cx-home/cx-public/lang/go"
+	cxlib "github.com/cx-home/cx/lang/go"
 )
 
 var examplesDir string

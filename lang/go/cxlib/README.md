@@ -46,7 +46,7 @@ import (
 	"fmt"
 	"runtime"
 
-	cx "github.com/cx-home/cx-public/lang/go"
+	cx "github.com/cx-home/cx/lang/go"
 )
 
 const cxStr = `[config version='1.0' debug=false
@@ -114,7 +114,7 @@ import (
 	"fmt"
 	"runtime"
 
-	cx "github.com/cx-home/cx-public/lang/go"
+	cx "github.com/cx-home/cx/lang/go"
 )
 
 const cxStr = `[config
@@ -165,7 +165,7 @@ import (
 	"fmt"
 	"runtime"
 
-	cx "github.com/cx-home/cx-public/lang/go"
+	cx "github.com/cx-home/cx/lang/go"
 )
 
 const cxStr = `[services
@@ -220,7 +220,7 @@ import (
 	"fmt"
 	"runtime"
 
-	cx "github.com/cx-home/cx-public/lang/go"
+	cx "github.com/cx-home/cx/lang/go"
 )
 
 const cxStr = `[services
@@ -255,7 +255,7 @@ import (
 	"fmt"
 	"runtime"
 
-	cx "github.com/cx-home/cx-public/lang/go"
+	cx "github.com/cx-home/cx/lang/go"
 )
 
 const cxStr = `[config version='1.0' debug=false
@@ -310,9 +310,9 @@ module cxdemo
 
 go 1.21
 
-require github.com/cx-home/cx-public/lang/go v0.0.0
+require github.com/cx-home/cx/lang/go v0.0.0
 
-replace github.com/cx-home/cx-public/lang/go => /path/to/cx-public/lang/go/cxlib
+replace github.com/cx-home/cx/lang/go => /path/to/cx-public/lang/go/cxlib
 ```
 
 Then run it:

@@ -56,7 +56,7 @@ converts losslessly to and from JSON, YAML, TOML, XML, and Markdown. Multiple AI
 **Prerequisites:** [V](https://vlang.io) 0.5.1+. No other dependencies.
 
 ```sh
-git clone https://github.com/cx-home/cx-public
+git clone https://github.com/cx-home/cx
 cd cx
 make build
 ```
@@ -1034,7 +1034,7 @@ make test-ruby
 **Requires:** `libcx` built (`make build`), Go 1.21+, CGo toolchain.
 
 ```go
-import cxlib "github.com/cx-home/cx-public/lang/go"
+import cxlib "github.com/cx-home/cx/lang/go"
 
 // Conversion API
 result, _ := cxlib.ToJson("[server [host localhost] [port :int 8080]]")

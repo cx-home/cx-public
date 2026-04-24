@@ -109,7 +109,7 @@ event sequence. Unlike `//` or `#` comments, they never silently disappear.
 
 ```cx
 [``` lang=bash [|
-git clone https://github.com/cx-home/cx-public
+git clone https://github.com/cx-home/cx
 make build
 |]]
 ```
@@ -169,7 +169,7 @@ Event types: `StartDoc`, `EndDoc`, `StartElement`, `EndElement`, `Text`,
 All bindings expose the same API: parse, stream, to_json/xml/yaml/toml/md,
 json/xml/yaml/toml_to_cx.
 
-Build from source: `git clone https://github.com/cx-home/cx-public && make build`
+Build from source: `git clone https://github.com/cx-home/cx && make build`
 
 | Language   | Path in repo                   |
 |------------|--------------------------------|

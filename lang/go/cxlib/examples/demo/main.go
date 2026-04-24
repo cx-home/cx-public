@@ -8,7 +8,7 @@ package main
 import (
 	"fmt"
 
-	cxlib "github.com/cx-home/cx-public/lang/go"
+	cxlib "github.com/cx-home/cx/lang/go"
 )
 
 const configSrc = `[config version='1.0' debug=false
