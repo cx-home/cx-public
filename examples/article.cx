@@ -1,0 +1,45 @@
+[-Rich document example: comments, mixed content, raw text, entity and char refs]
+[article lang=en
+  [head
+    [title CX Language Tour]
+    [author J. Smith]
+    [published 2026-04-19]
+    [tags :string[] cx markup tutorial beginner]
+  ]
+
+  [body
+    [h1 What is CX?]
+
+    [p
+      CX is a [em compact] and [strong human-friendly] format that
+      unifies markup and configuration in one clean syntax.
+    ]
+
+    [-code block uses raw text so brackets inside are not parsed]
+    [h2 Quick Example]
+    [pre [# [server [host localhost] [port :int 8080] [debug true]] #]]
+
+    [p
+      Note that [code 8080] auto-types as an [em integer] and [code true]
+      as a [em boolean] &mdash; no schema or quotes required.
+    ]
+
+    [-entity refs and character references]
+    [h2 Special Characters]
+    [p
+      Predefined entities: &amp; &lt; &gt; &apos; &quot;
+    ]
+    [p
+      Character references: &#169; 2026 Acme Corp, registered trademark &#174;
+    ]
+
+    [-demonstrate inline elements mixed with entity refs]
+    [blockquote
+      [p
+        The goal of CX is to be [strong as readable as YAML] yet
+        [strong as expressive as XML] &mdash; without the verbosity of either.
+      ]
+      [cite &mdash; CX specification, section 1]
+    ]
+  ]
+]

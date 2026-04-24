@@ -1,0 +1,21 @@
+[database]
+host = "localhost"
+name = "myapp"
+pool_size = 10
+port = 5432
+ssl = false
+
+[logging]
+file = "/var/log/app.log"
+level = "info"
+
+[server]
+allowed_origins = [
+    "https://example.com",
+    "https://app.example.com",
+]
+debug = false
+host = "localhost"
+port = 8080
+workers = 4
+

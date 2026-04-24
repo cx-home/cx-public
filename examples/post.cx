@@ -1,0 +1,51 @@
+[-Markdown-style blog post: headings, inline markup, code blocks, lists, blockquote, link]
+
+[# CX in Practice: A Field Guide]
+
+[p By [a href=https://github.com/ardec Erik Paulson] · [date 2026-04-20]]
+
+[p CX is a [** structured] format that looks like brackets and reads like
+  natural text. This post walks through a typical working session.]
+
+[## Setting Up]
+
+[p Build from source — the whole toolchain compiles with a single command:]
+
+[``` lang=bash [|
+git clone https://github.com/ardec/cx
+make build   # builds libcx and the cx CLI
+make test    # runs all 10 language binding test suites
+|]]
+
+[## Your First Document]
+
+[p Start with a simple config. Attributes type themselves — no quotes, no schema:]
+
+[``` lang=cx [|
+[server host=localhost port=8080 debug=true
+  [tags :string[] web api internal]
+]
+|]]
+
+[## Converting Formats]
+
+[p Pipe any CX file through the [` cx] CLI or call the library directly:]
+
+[ul
+  [li [` cx to-json config.cx] — compact JSON for APIs]
+  [li [` cx to-xml  config.cx] — XML for legacy systems]
+  [li [` cx to-toml config.cx] — TOML for human editors]
+  [li [` cx to-md   doc.cx]    — Markdown for documentation]
+]
+
+[## Mixed Content]
+
+[p CX handles documents and data in the same syntax. Inline markup works
+  anywhere: [** bold], [* italic], [` code], [~~ strikethrough].]
+
+[> [p The goal was one format you never have to escape from.]]
+
+[## What's Next]
+
+[p See the [a href=https://github.com/ardec/cx full documentation] for
+  language binding guides, the conformance suite, and the grammar spec.]

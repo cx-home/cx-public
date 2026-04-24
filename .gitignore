@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+out.txt
+bench.md
+dist/
+
+.claude/settings.local.json
+
+# V / Rust build artifacts
+vcx/target/
+lang/rust/cxlib/target/
+
+# compiled V binaries in example dirs
+lang/v/examples/transform
+
+# Language binding build artifacts
+lang/swift/cxlib/.build/
+lang/typescript/cxlib/dist/
+lang/typescript/cxlib/node_modules/
+lang/java/cxlib/target/
+lang/kotlin/cxlib/build/
+lang/kotlin/cxlib/.gradle/
+lang/csharp/*/bin/
+lang/csharp/*/obj/
+lang/rust/cxlib/target/
+
+# Editor tooling build artifacts
+tooling/lsp/node_modules/
+tooling/lsp/out/
+tooling/vscode/node_modules/
+tooling/vscode/out/
+tooling/vscode/*.vsix

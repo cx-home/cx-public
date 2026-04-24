@@ -1,0 +1,16 @@
+{
+  "grammars": [
+    {
+      "name": "cx",
+      "scope": "source.cx",
+      "file-types": ["cx"],
+      "highlights": "queries/highlights.scm",
+      "injections": "queries/injections.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "description": "Tree-sitter grammar for the CX markup language",
+    "license": "MIT"
+  }
+}

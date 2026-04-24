@@ -1,0 +1,24 @@
+{
+  "library": {
+    "book": [
+      {
+        "author": "J.R.R. Tolkien",
+        "available": true,
+        "title": "The Hobbit",
+        "year": 1937
+      },
+      {
+        "author": "Frank Herbert",
+        "available": false,
+        "title": "Dune",
+        "year": 1965
+      },
+      {
+        "author": "William Gibson",
+        "available": true,
+        "title": "Neuromancer",
+        "year": 1984
+      }
+    ]
+  }
+}

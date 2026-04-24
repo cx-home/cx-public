@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cxlib"
+version = "0.5.0"
+description = "CX format library — parse, stream, and convert CX/XML/JSON/YAML/TOML/Markdown"
+readme = "cxlib/README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["cx", "markup", "xml", "json", "yaml", "toml", "parser"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cxlib*"]

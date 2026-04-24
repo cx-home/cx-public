@@ -1,0 +1,20 @@
+[server
+  [host localhost]
+  [port :int 8080]
+  [debug false]
+  [workers :int 4]
+  [allowed_origins :string[] https://example.com https://app.example.com]
+]
+
+[database
+  [host localhost]
+  [port :int 5432]
+  [name myapp]
+  [pool_size :int 10]
+  [ssl false]
+]
+
+[logging
+  [level info]
+  [file /var/log/app.log]
+]

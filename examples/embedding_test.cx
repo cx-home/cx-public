@@ -1,0 +1,52 @@
+[doc title="Embedding Test"
+
+  [section
+    [# Embedded JSON]
+    [p Here is some JSON configuration:]
+    [``` lang=json [|
+{
+  "name": "example",
+  "version": "1.0.0",
+  "enabled": true,
+  "count": 42,
+  "tags": ["cx", "test"]
+}
+    |]]
+  ]
+
+  [section
+    [## Embedded Bash]
+    [``` lang=bash [|
+#!/bin/bash
+for f in *.cx; do
+  echo "Processing $f"
+  cx compile "$f" --output dist/
+done
+    |]]
+  ]
+
+  [section
+    [### Embedded Python]
+    [``` lang=python [|
+def parse_cx(path: str) -> dict:
+    with open(path) as f:
+        return cx.load(f.read())
+
+result = parse_cx("doc.cx")
+print(result["title"])
+    |]]
+  ]
+
+  [section
+    [#### Embedded YAML]
+    [``` lang=yaml [|
+server:
+  host: localhost
+  port: 8080
+  debug: false
+features:
+  - auth
+  - logging
+    |]]
+  ]
+]

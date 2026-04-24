@@ -1,0 +1,42 @@
+[-vcore.cx — showcases grammar v3.3 / AST v2.3 features:
+   auto-array, :[] inferred-type array, short type aliases,
+   triple-quoted strings, and block content]
+
+[-1. AUTO-ARRAY: 2+ homogeneous unquoted tokens → typed array]
+[scores 10 20 30]
+[temps -2.5 0.0 3.7 21.1]
+[flags true false true]
+[releases 2024-01-15 2025-03-01 2026-04-19]
+
+[-2. :[] INFERRED-TYPE ARRAY: type inferred from tokens]
+[-   all numeric → float[] after int/float promotion]
+[data :[] 1 2.5 3]
+[-   any string token → string[]]
+[tags :[] admin user guest]
+
+[-3. SHORT TYPE ALIASES: :i :f :b :s :d :dt — same as long forms]
+[count :i 42]
+[ratio :f 3.14]
+[active :b true]
+[label :s 90210]
+[launch :d 2026-04-19]
+[stamp :dt 2026-04-19T09:00:00Z]
+
+[-4. TRIPLE-QUOTED STRINGS: ''' ... ''' — multiline, indent-stripped]
+[readme '''
+  CX is a bracket-based format.
+  It converts to XML, JSON, YAML, and TOML.
+''']
+
+[sql '''
+  SELECT id, name, email
+    FROM users
+   WHERE active = true
+   ORDER BY name
+''']
+
+[-5. BLOCK CONTENT: [|...|] — parsed body with preserved newlines]
+[p [|
+  Visit our [a href=https://example.com site] or
+  read the [a href=https://docs.example.com docs].
+|]]

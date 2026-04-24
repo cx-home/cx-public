@@ -1,0 +1,18 @@
+<server>
+  <host>localhost</host>
+  <port cx:type="int">8080</port>
+  <debug>false</debug>
+  <workers cx:type="int">4</workers>
+  <allowed_origins cx:type="string[]"><item>https://example.com</item><item>https://app.example.com</item></allowed_origins>
+</server>
+<database>
+  <host>localhost</host>
+  <port cx:type="int">5432</port>
+  <name>myapp</name>
+  <pool_size cx:type="int">10</pool_size>
+  <ssl>false</ssl>
+</database>
+<logging>
+  <level>info</level>
+  <file>/var/log/app.log</file>
+</logging>

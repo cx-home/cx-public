@@ -1,0 +1,20 @@
+<library>
+  <book>
+    <title>The Hobbit</title>
+    <author>J.R.R. Tolkien</author>
+    <year cx:type="int">1937</year>
+    <available>true</available>
+  </book>
+  <book>
+    <title>Dune</title>
+    <author>Frank Herbert</author>
+    <year cx:type="int">1965</year>
+    <available>false</available>
+  </book>
+  <book>
+    <title>Neuromancer</title>
+    <author>William Gibson</author>
+    <year cx:type="int">1984</year>
+    <available>true</available>
+  </book>
+</library>

@@ -1,0 +1,62 @@
+[-XML-style structured document: chapter with metadata, sections, table, listings, notes]
+[chapter id=getting-started lang=en
+  [title Getting Started with CX]
+  [meta
+    [author org=Ardec Erik Paulson]
+    [date 2026-04-20]
+    [version 1.0]
+    [keywords :string[] cx format tutorial getting-started]
+  ]
+  [abstract
+    [p CX is a compact, typed format for configs, data, and documents —
+       all in one unified bracket syntax.]
+    [p This chapter introduces the core concepts and shows how a single
+       CX source converts to XML, JSON, YAML, TOML, and Markdown.]
+  ]
+  [section id=elements
+    [title Elements and Attributes]
+    [p An [em element] is a named bracket. Attributes carry typed scalars —
+       no schema or quotes required:]
+    [listing lang=cx [# [server host=localhost port=8080 debug=true] #]]
+    [p CX infers types automatically:]
+    [table
+      [thead [tr [th Value]      [th Type]]]
+      [tbody
+        [tr [td 8080]       [td int]]
+        [tr [td 3.14]       [td float]]
+        [tr [td true]       [td bool]]
+        [tr [td 2026-04-20] [td date]]
+        [tr [td null]       [td null]]
+      ]
+    ]
+  ]
+  [section id=nesting
+    [title Nesting and Mixed Content]
+    [p Elements nest freely. Text and child elements mix in the same container:]
+    [listing lang=cx [#
+[article
+  [head [title My Report] [author J. Smith]]
+  [body
+    [h1 Overview]
+    [p This report covers [em three] key findings.]
+  ]
+]
+    #]]
+    [note type=tip
+      [p CX round-trips cleanly: parsing and re-emitting produces
+         normalised, diff-friendly output.]
+    ]
+  ]
+  [section id=formats
+    [title Output Formats]
+    [p One source file, any target format. The [code cx] CLI and
+       [code libcx] library support ten language bindings:]
+    [ul
+      [li [code cx to-xml   chapter.cx] — DocBook-style XML]
+      [li [code cx to-json  chapter.cx] — API-ready JSON]
+      [li [code cx to-yaml  chapter.cx] — YAML for editors]
+      [li [code cx to-toml  chapter.cx] — TOML for configs]
+      [li [code cx to-md    chapter.cx] — Markdown for docs]
+    ]
+  ]
+]

@@ -1,0 +1,10 @@
+prefix=@PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: cx
+Description: CX format library
+Version: 0.5.0
+Libs: -L${libdir} -lcx
+Cflags: -I${includedir}

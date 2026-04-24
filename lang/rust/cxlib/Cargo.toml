@@ -1,0 +1,24 @@
+[package]
+name = "cxlib"
+version = "0.5.0"
+edition = "2021"
+description = "CX format library — thin wrapper around libcx"
+
+[profile.release]
+opt-level = "s"      # size over speed (matches V's -Os choice)
+lto = true           # link-time optimisation — dead code elimination across crates
+codegen-units = 1    # single codegen unit for better LTO
+strip = true         # strip symbols from the binary
+
+[dependencies]
+serde_json = "1"
+
+[[example]]
+name = "transform"
+
+[[example]]
+name = "demo"
+
+[[bin]]
+name = "bench_time"
+path = "src/bin/bench_time.rs"

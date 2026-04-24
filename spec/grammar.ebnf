@@ -1,0 +1,495 @@
+# CX Grammar Specification
+# Version: 3.3
+# Date: 2026-04-19
+# Description: CX is a bracket-based markup language. Every single resolved CX Document
+# can be serialized to XML using the cx: namespace for CX-specific metadata. Both CX and
+# XML parse to the same canonical AST (see ast-spec.md).
+#
+# This grammar uses PascalCase for all named productions without exception.
+# Lexical terminals are quoted strings or character classes.
+# Productions marked (informative) describe parser behaviour, not syntax.
+
+# ─── Conventions ─────────────────────────────────────────────────────────────
+#
+# CX Core productions: Document, Element, Attribute, BodyText (Text), RawText,
+#   Comment, PI, XMLDecl, CXDirective, Reference (EntityRef, CharRef),
+#   EntityDecl, DoctypeDecl.
+#   EntityDecl is Core because EntityRef is Core — entity declarations define
+#   the names that appear as EntityRef nodes. Core parsers store EntityDecl
+#   nodes without resolving them.
+#
+# CX Extended productions: Scalar, TypeAnnotation, Array, Anchor/Alias/Merge,
+#   MultiDoc, TripleQuoted, BlockContent, ElementDecl, AttlistDecl,
+#   NotationDecl, ConditionalSect.
+#   (DTD schema declarations: Core parsers may skip or error on these.)
+#
+# Parsers MUST implement Core. Extended is optional and gated by feature flags.
+
+# ─── Document Structure ───────────────────────────────────────────────────────
+
+[1]  MultiDoc    ::= Document ('---' S* Document)*
+     /* Extended. A file may contain multiple documents separated by ---.
+        Each Document is parsed independently with its own scope.
+        Parsers return a stream or array of Document nodes. */
+
+[2]  Document    ::= Prolog? DoctypeDecl? Node*
+     /* Multiple top-level Nodes allowed (multi-root). */
+
+[3]  Node        ::= Element | Scalar | AliasElement | CXDirective
+                   | BodyText | Reference | RawText | BlockContent | PI | Comment
+                   | EntityDecl | ElementDecl | AttlistDecl
+                   | NotationDecl | ConditionalSect
+     /* BodyText and Reference added so that loose text and entity refs are
+        valid at the document level, not only inside element bodies.
+        This aligns Node with BodyItem [53] for consistent multi-root docs. */
+
+# ─── Characters and Whitespace ────────────────────────────────────────────────
+
+[4]  Char        ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+
+[5]  S           ::= (#x20 | #x9 | #xD | #xA)+
+     /* Whitespace between unquoted body tokens normalizes to a single space in
+        the AST Text value. Adjacent tokens (no S) produce no space.
+        Whitespace inside QuotedText, TripleQuoted, or BlockContent is
+        preserved literally — no normalization applies. */
+
+[6]  NameStartChar ::= ":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6]
+                     | [#xF8-#x2FF]   | [#x370-#x37D]  | [#x37F-#x1FFF]
+                     | [#x200C-#x200D]| [#x2070-#x218F] | [#x2C00-#x2FEF]
+                     | [#x3001-#xD7FF]| [#xF900-#xFDCF] | [#xFDF0-#xFFFD]
+                     | [#x10000-#xEFFFF]
+[6a] NameChar    ::= NameStartChar | "-" | "." | [0-9] | #xB7
+                   | [#x0300-#x036F] | [#x203F-#x2040]
+[7]  Name        ::= NameStartChar NameChar*
+[8]  Nmtoken     ::= NameChar+
+
+# ─── Literals ────────────────────────────────────────────────────────────────
+
+[10] QuotedText  ::= "'" QuotedContent "'"
+     /* Literal text. Whitespace preserved exactly. Always a string.
+        The CX emitter wraps Text values in quotes when the value contains
+        leading/trailing whitespace, consecutive spaces, or newlines. */
+[10a] QuotedContent ::= ([^'\\] | EscapeSeq | Reference)*
+
+[10b] TripleQuoted ::= "'''" TripleContent "'''"
+      /* Extended. Multiline string literal. Always produces a Text node.
+         Inner CX elements are NOT parsed — content is raw character data.
+         Terminator: the three-character sequence '''. Single and double
+         quotes may appear unescaped inside; only ''' closes the block.
+         Escape sequences identical to QuotedText [11] apply inside.
+         Whitespace normalization (applied in order after scanning):
+           1. One leading newline immediately after ''' is stripped.
+           2. One trailing newline immediately before ''' is stripped.
+           3. Common leading whitespace of all non-blank lines is stripped.
+         TripleQuoted is NOT valid in AttValue position [55a]. */
+[10c] TripleContent ::= Char* - (Char* "'''" Char*)
+      /* All character sequences not containing the unescaped terminator '''.
+         Use \' to prevent early termination; \'\'\' embeds literal ''' . */
+
+[11] EscapeSeq   ::= '\\' ( "'" | '\\' | 'n' | 'r' | 't'
+                           | 'u' HexDigit HexDigit HexDigit HexDigit
+                           | 'U' HexDigit HexDigit HexDigit HexDigit
+                                 HexDigit HexDigit HexDigit HexDigit )
+[11a] HexDigit   ::= [0-9a-fA-F]
+
+[12] BareValue   ::= BareChar+
+     /* Unquoted attribute values. Stops at whitespace, [ ] = ' " */
+[12a] BareChar   ::= Char - ( S | '[' | ']' | '=' | "'" | '"' )
+     /* Allows / : # ? @ ! ~ + , and other chars needed in URLs and paths. */
+
+[13] SystemLiteral ::= "'" [^']* "'"
+     /* Single-quoted SYSTEM identifier. Always quoted in CX output. */
+[14] PubidLiteral  ::= "'" PubidChar* "'"
+     /* Single-quoted PUBLIC identifier. Always quoted in CX output. */
+[15] PubidChar     ::= #x20 | #xD | #xA | [a-zA-Z0-9] | [-'()+,./:=?;!*#@$_%]
+
+# ─── Number Literals ─────────────────────────────────────────────────────────
+
+[20] Number      ::= '-'? ( HexInt | Float | Integer )
+     /* Lexer rule: '-' immediately followed by a digit is part of the Number
+        token. '-' followed by a non-digit is a NameChar (text/name character). */
+[20a] HexInt     ::= '0x' HexDigit+
+      /* Stored as int in AST. Checked before Integer to avoid prefix match. */
+[20b] Float      ::= Integer '.' [0-9]+ ( [eE] [+-]? Integer )?
+                   | Integer [eE] [+-]? Integer
+      /* Requires a decimal point or exponent — plain digits are Integer, not Float. */
+[20c] Integer    ::= [0-9]+
+
+[21] BoolLiteral     ::= 'true' | 'false'
+[22] NullLiteral     ::= 'null'
+[23] DateLiteral     ::= [0-9]{4} '-' [0-9]{2} '-' [0-9]{2}
+[24] DateTimeLiteral ::= DateLiteral 'T' [0-9]{2} ':' [0-9]{2} ':' [0-9]{2}
+                         ('.' [0-9]+)?
+                         ( 'Z' | [+-] [0-9]{2} ':' [0-9]{2} )
+
+# ─── Auto-typing (informative) ────────────────────────────────────────────────
+
+[25] AutoType    ::= (informative)
+     /* Auto-typing applies in two forms, both overridden by explicit
+        TypeAnnotation. QuotedText is always Text regardless of content.
+
+        Scalar auto-type: element body has exactly one unquoted token and
+        no child elements. Priority for that single token:
+          1. Matches HexInt pattern              → int
+          2. Matches Integer pattern             → int
+          3. Matches Float pattern               → float
+          4. 'true' or 'false'                   → bool
+          5. 'null'                              → null
+          6. Matches DateTimeLiteral pattern     → datetime
+          7. Matches DateLiteral pattern         → date
+          8. Otherwise                           → Text (not a Scalar)
+
+        Array auto-type [25a]: element body has 2+ unquoted tokens and
+        no child elements. Fires only when all tokens resolve to the same
+        non-string type (see [25a]).
+
+        Attribute auto-type [55a]: BareValue attribute values are auto-typed
+        using the scalar priority above. Array auto-type does not apply
+        to attribute values. */
+
+[25a] AutoArray  ::= (informative)
+      /* Fires when: element body has 2+ whitespace-separated unquoted tokens,
+         no child elements, no TypeAnnotation.
+         Algorithm:
+           1. Apply scalar auto-type priority [25] to each token independently.
+           2. If ALL tokens resolve to the same non-string type → the element
+              body becomes an array of that type (int[], float[], bool[],
+              date[], or datetime[]).
+           3. Mixed int and float tokens → float[] (numeric promotion).
+           4. Any other mix, or any token that falls through to Text → body
+              remains Text nodes. No auto-array fires.
+         String tokens never trigger auto-array. String arrays always require
+         an explicit TypeAnnotation (:[] or :s[] or :string[]). */
+
+# ─── Type Annotations (Extended) ─────────────────────────────────────────────
+
+[26] TypeAnnotation ::= ':' ( TypeName ('[]')? | '[]' )
+     /* Appears in ElementMeta position (after name, before body).
+        At most one TypeAnnotation per element.
+        :type     — explicit scalar type, overrides auto-typing
+        :type[]   — explicit typed array; body tokens are items of that type
+        :[]       — inferred-type array; element type inferred from content:
+                    non-string auto-typed tokens → that type; any string
+                    token (or token falling through to Text) → string[].
+                    QuotedText tokens always count as string.
+                    :[] is the minimal annotation to signal a string array. */
+[26a] TypeName   ::= 'int' | 'float' | 'bool' | 'string' | 'null'
+                   | 'date' | 'datetime' | 'bytes'
+                   | 'i' | 'f' | 'b' | 's' | 'd' | 'dt'
+      /* Short aliases: i=int  f=float  b=bool  s=string  d=date  dt=datetime.
+         null and bytes have no short alias — use long forms only.
+         Long forms are canonical: emitters MUST produce long forms;
+         parsers MUST accept both long and short in all TypeAnnotation contexts.
+         Short and long forms are fully equivalent; no semantic difference. */
+
+# ─── Scalar (Extended) ───────────────────────────────────────────────────────
+
+[27] Scalar      ::= TypeAnnotation S ScalarValue
+                   | AutoTypedToken
+     /* TypeAnnotation form: explicit scalar in any context.
+        AutoTypedToken form: single-token element body auto-typed by rule [25]. */
+[27a] ScalarValue ::= Number | BoolLiteral | NullLiteral | DateTimeLiteral
+                    | DateLiteral | QuotedText | BareValue
+     /* :bytes annotation requires a base64-encoded BareValue or QuotedText. */
+[27b] AutoTypedToken ::= Number | BoolLiteral | NullLiteral
+                       | DateTimeLiteral | DateLiteral
+     /* The set of unquoted tokens eligible for auto-typing per rule [25].
+        Tokens that are plain NameChar strings fall through to Text. */
+
+# ─── Block Content (Extended) ─────────────────────────────────────────────────
+
+[28] BlockContent ::= '[|' BlockBody ']'
+     /* Extended. Parsed block literal with literal newline preservation.
+        [| opens the block; ] closes it using normal bracket-counting (same
+        as Element — no special terminator needed).
+        Content is parsed as CX BodyItems: elements, references, and all
+        other BodyItems [53] are recognized and produce their normal AST nodes.
+        Newlines within BlockContent are preserved literally; whitespace
+        between adjacent tokens is NOT normalized to a single space.
+        Whitespace processing (applied in order):
+          1. One leading newline immediately after [| is stripped.
+          2. One trailing newline immediately before the closing ] is stripped.
+          3. Common leading whitespace of all non-blank lines is stripped.
+        In Round-trip XML: <cx:block>...</cx:block>.
+        In Semantic XML: items inlined directly into the parent element. */
+[28a] BlockBody  ::= BodyItem*
+      /* Same item set as element Body [52]/BodyItem [53], but parsed with
+         newline-preservation mode active rather than whitespace normalization. */
+
+# ─── Comments ─────────────────────────────────────────────────────────────────
+
+[30] Comment     ::= '[-' CommentContent ']'
+     /* [-comment text]  →  <!-- comment text -->
+        Value stored in AST excludes the [- and ] delimiters. */
+[30a] CommentContent ::= Char* - (Char* ']' Char*)
+
+# ─── Raw Text (CDSect) ────────────────────────────────────────────────────────
+
+[31] RawText     ::= '[#' RawContent '#]'
+     /* [# raw content #]  →  <![CDATA[raw content]]>
+        Terminator is the two-character sequence #].
+        A bare ] is allowed inside raw text.
+        The sequence #] cannot appear in raw content; use &rsqb; if needed.
+        CDATA split rule: when emitting XML, if the raw content contains the
+        sequence ]]>, the emitter MUST split it using the technique:
+          ]]>  →  ]]><![CDATA[>
+        This produces adjacent CDATA sections that together reconstruct the
+        original content. XML parsers reassemble adjacent CDATA sections. */
+[31a] RawContent ::= Char* - (Char* '#]' Char*)
+
+# ─── Processing Instructions ─────────────────────────────────────────────────
+
+[32] PI          ::= '[?' PITarget ( S PIData )? ']'
+     /* [?target raw data string]  →  <?target raw data string?>
+        PIData stored as-is. Not parsed as name=value pairs.
+        [?php echo $x;]  — data is the string "echo $x;" */
+[32a] PIData     ::= Char* - (Char* ']' Char*)
+[32b] PITarget   ::= Name - ( ('X'|'x')('M'|'m')('L'|'l') ) - 'cx'
+      /* 'xml' and 'cx' are reserved; handled as structured directives below. */
+
+# ─── XMLDecl ──────────────────────────────────────────────────────────────────
+
+[33] XMLDecl     ::= '[?xml' VersionInfo EncodingDecl? SDDecl? S? ']'
+     /* [?xml version=1.0]
+        [?xml version=1.0 encoding=UTF-8]
+        [?xml version=1.0 encoding=UTF-8 standalone=yes]
+        Stored as XMLDecl node, not as a PI. Must be first item in Prolog. */
+[33a] VersionInfo  ::= S 'version' Eq VersionNum
+[33b] VersionNum   ::= '1.' [0-9]+
+[33c] EncodingDecl ::= S 'encoding' Eq EncName
+[33d] SDDecl       ::= S 'standalone' Eq ( 'yes' | 'no' )
+[33e] Eq           ::= S? '=' S?
+[33f] EncName      ::= [A-Za-z] ( [A-Za-z0-9._] | '-' )*
+
+# ─── CX Directive ─────────────────────────────────────────────────────────────
+
+[34] CXDirective ::= '[?cx' ( S CXAttr )* S? ']'
+     /* Structured directives using reserved target 'cx'.
+        Stored as CXDirective node in Parse AST; expanded in Resolved AST.
+        Serializes to <?cx ...?> in XML output.
+        [?cx include=file.cx]    — include another CX file inline
+        [?cx schema=file.cxs]    — declare schema for this document
+        [?cx version=3.1]        — declare CX version */
+[34a] CXAttr     ::= Name Eq BareValue
+
+# ─── Prolog ───────────────────────────────────────────────────────────────────
+
+[35] Prolog      ::= XMLDecl? Misc*
+     /* Omitted from AST when empty. */
+[36] Misc        ::= Comment | PI | CXDirective | S
+
+# ─── DOCTYPE ──────────────────────────────────────────────────────────────────
+
+[37] DoctypeDecl ::= '[!DOCTYPE' S Name ( S ExternalID )? S?
+                     ( '[' IntSubset ']' S? )? ']'
+     /* ExternalID and IntSubset are independent and both optional.
+        [!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0//EN' 'http://...']
+        [!DOCTYPE root [ [!ELEMENT p ANY] ]] */
+[38] IntSubset   ::= ( MarkupDecl | DeclSep )*
+[39] DeclSep     ::= PEReference | S
+[40] MarkupDecl  ::= ElementDecl | AttlistDecl | EntityDecl
+                   | NotationDecl | PI | Comment
+
+[41] ExternalID  ::= 'SYSTEM' S SystemLiteral
+                   | 'PUBLIC' S PubidLiteral S SystemLiteral
+
+# ─── Elements ─────────────────────────────────────────────────────────────────
+
+[50] Element     ::= '[' Name ( S ElementMeta )* S? Body? ']'
+
+[51] ElementMeta ::= AnchorDef | MergeRef | TypeAnnotation | Attribute
+     /* TypeAnnotation appears at most once. Ordering is NORMATIVE:
+          AnchorDef? MergeRef? TypeAnnotation? Attribute*
+        Parsers MUST accept any order for compatibility, but emitters MUST
+        produce this canonical order. This ensures round-trip stability and
+        consistent output across all language implementations. */
+
+[52] Body        ::= BodyItem+
+[53] BodyItem    ::= BodyText | Element | AliasElement | Scalar | BlockContent
+                   | Reference | RawText | PI | CXDirective | Comment | MarkupDecl
+[54] BodyText    ::= QuotedText | TripleQuoted | UnquotedText
+[54a] UnquotedText ::= ( NameChar | BareChar )+
+      /* Unquoted body token. Auto-typed per rule [25] when element qualifies.
+         Otherwise stored as Text node with whitespace normalization. */
+
+[55] Attribute   ::= Name Eq AttValue
+[55a] AttValue   ::= BareValue | QuotedText
+      /* BareValue attribute values are auto-typed using the same scalar
+         priority as rule [25] (HexInt → int, Integer → int, Float → float,
+         true/false → bool, null → null, datetime, date; else string).
+         QuotedText attribute values are always string — the escape hatch
+         when a numeric-looking value must be stored as string.
+         Array auto-type [25a] does not apply to attribute values.
+         The inferred dataType is recorded in the AST Attribute node when
+         non-string; string is the default and is omitted from the AST. */
+
+# ─── Anchors and Aliases (Extended) ──────────────────────────────────────────
+
+[60] AnchorDef   ::= '&' Name
+     /* Defines a reusable named anchor on this element. No trailing semicolon —
+        distinct from EntityRef [65] which requires a semicolon.
+        [defaults &def timeout=30]  — anchors this element as 'def' */
+
+[61] MergeRef    ::= '*' Name
+     /* Merges the named anchor's attributes and items into this element.
+        [production *def host=prod.example.com]  — inherits def, overrides host */
+
+[62] AliasElement ::= '[' '*' Name ']'
+     /* Full element replacement with the named anchor.
+        [*def]  — expands to the complete anchored element in Resolved AST. */
+
+# ─── References ───────────────────────────────────────────────────────────────
+
+[65] Reference   ::= EntityRef | CharRef
+[66] EntityRef   ::= '&' Name ';'
+     /* Requires semicolon — distinguishes from AnchorDef [60].
+        Stored as EntityRef node. Never resolved: &amp; stays EntityRef("amp"). */
+[67] CharRef     ::= '&#' [0-9]+ ';' | '&#x' HexDigit+ ';'
+     /* Resolved to Unicode character, stored as single-char Text node. */
+[68] PEReference ::= '%' Name ';'
+     /* Parameter entity reference. Used inside declarations only. */
+
+[69] EntityValue ::= "'" ( [^%&'\\] | EscapeSeq | PEReference | Reference )* "'"
+
+# ─── Declarations ─────────────────────────────────────────────────────────────
+
+[70] EntityDecl  ::= GEDecl | PEDecl
+[71] GEDecl      ::= '[!ENTITY' S Name S EntityDef S? ']'
+[72] PEDecl      ::= '[!ENTITY' S '%' S Name S PEDef S? ']'
+[73] EntityDef   ::= EntityValue | ( ExternalID NDataDecl? )
+[74] PEDef       ::= EntityValue | ExternalID
+[75] NDataDecl   ::= S 'NDATA' S Name
+
+[80] ElementDecl ::= '[!ELEMENT' S Name S ContentSpec S? ']'
+[81] ContentSpec ::= 'EMPTY' | 'ANY' | Mixed | Children
+[82] Mixed       ::= '(' S? '#PCDATA' ( S? '|' S? Name )* S? ')*'
+                   | '(' S? '#PCDATA' S? ')'
+     /* Mixed content model: (#PCDATA|b|em)* or (#PCDATA) */
+[83] Children    ::= ( Choice | Seq ) ( '?' | '*' | '+' )?
+[84] Cp          ::= ( Name | Choice | Seq ) ( '?' | '*' | '+' )?
+[85] Choice      ::= '(' S? Cp ( S? '|' S? Cp )+ S? ')'
+[86] Seq         ::= '(' S? Cp ( S? ',' S? Cp )* S? ')'
+
+[90] AttlistDecl ::= '[!ATTLIST' S Name AttDef* S? ']'
+[91] AttDef      ::= S Name S AttType S DefaultDecl
+[92] AttType     ::= 'CDATA' | 'ID' | 'IDREF' | 'IDREFS' | 'ENTITY' | 'ENTITIES'
+                   | 'NMTOKEN' | 'NMTOKENS' | EnumeratedType
+[93] DefaultDecl ::= '#REQUIRED' | '#IMPLIED'
+                   | ( '#FIXED' S AttValue )
+                   | AttValue
+[94] EnumeratedType ::= NotationType | Enumeration
+[95] NotationType   ::= 'NOTATION' S '(' S? Name ( S? '|' S? Name )* S? ')'
+[96] Enumeration    ::= '(' S? Nmtoken ( S? '|' S? Nmtoken )* S? ')'
+
+[100] NotationDecl ::= '[!NOTATION' S Name S ( ExternalID | PublicID ) S? ']'
+[101] PublicID     ::= 'PUBLIC' S PubidLiteral
+
+[110] ConditionalSect    ::= IncludeSect | IgnoreSect
+[111] IncludeSect        ::= '[![' S? 'INCLUDE' S? '[' ExtSubsetDecl ']]]'
+[112] IgnoreSect         ::= '[![' S? 'IGNORE'  S? '[' IgnoreContent* ']]]'
+[113] IgnoreContent      ::= IgnoreChars ( '[![' IgnoreContent ']]]' IgnoreChars )*
+[114] IgnoreChars        ::= Char* - ( Char* ( '[![' | ']]]' ) Char* )
+[115] ExtSubsetDecl      ::= ( MarkupDecl | ConditionalSect | DeclSep )*
+
+# ─── cx: Namespace ────────────────────────────────────────────────────────────
+
+# Namespace URI: https://cxformat.org/ns
+# Reserved prefix: cx — CX documents may not use ns:cx as a namespace alias.
+#
+# Used in XML output to carry CX-specific metadata not native to XML:
+#   cx:type="int"        — explicit scalar type annotation on element
+#   cx:type="string[]"   — typed array annotation on element
+#   cx:anchor="name"     — anchor definition
+#   cx:merge="name"      — merge reference
+#   cx:alias="name"      — alias element placeholder
+#
+# CXDirective serializes as <?cx ...?> in XML output (a standard XML PI).
+# XML consumers that do not understand cx: attributes treat them as opaque.
+
+# ─── Lexer Tokens ─────────────────────────────────────────────────────────────
+#
+# A CX lexer produces the following terminal tokens. Context-sensitive rules
+# noted below; the parser switches modes at element boundaries.
+#
+# Token          Pattern / rule                       Notes
+# ──────────────────────────────────────────────────────────────────────────────
+# LBRACK         [                                    Opens element/decl/PI/comment
+# RBRACK         ]                                    Closes any bracket construct
+# EQ             =                                    Attribute separator
+# TRIPLE_DASH    ---                                  MultiDoc separator (Extended)
+#
+# ANCHOR         & Name  (no semicolon)               AnchorDef [60]; no ; suffix
+# ENTITY_REF     & Name ;                             EntityRef [66]; must have ;
+# CHAR_REF       &# [0-9]+ ; | &#x HexDigit+ ;       CharRef [67]
+# PE_REF         % Name ;                             PEReference [68]; decls only
+# MERGE          * Name                               MergeRef [61]; inside element
+# ALIAS_OPEN     [*                                   AliasElement start [62]
+# TYPE_ANN       : TypeName ( '[]' )?                 TypeAnnotation [26]; Extended
+# TYPE_ANN_ARR   :[]                                  Inferred-type array [26]; Extended
+#
+# QUOTED         ' QuotedContent '                    QuotedText [10]
+# TRIPLE_QUOT    ''' TripleContent '''                 TripleQuoted [10b]; Extended
+# BARE           BareChar+                            BareValue [12]
+# NAME           NameStartChar NameChar*              Element/attr names, targets
+# NUMBER         -? (HexInt | Float | Integer)        Numeric literal [20]
+# BOOL           true | false                         BoolLiteral [21]
+# NULL_LIT       null                                 NullLiteral [22]
+# DATE           [0-9]{4}-[0-9]{2}-[0-9]{2}          DateLiteral [23]
+# DATETIME       DateLiteral 'T' ...                  DateTimeLiteral [24]
+#
+# Compound openers (lexer recognizes as single token before dispatching):
+# [?xml           → XMLDecl
+# [?cx            → CXDirective
+# [?Name          → PI
+# [-              → Comment
+# [#              → RawText (scan until #] terminator)
+# [|              → BlockContent (Extended); body parsed as BodyItem* with
+#                   literal newlines; closed by ] with normal bracket counting
+# [!DOCTYPE       → DoctypeDecl
+# [!ENTITY        → EntityDecl
+# [!ELEMENT       → ElementDecl (Extended)
+# [!ATTLIST       → AttlistDecl (Extended)
+# [!NOTATION      → NotationDecl (Extended)
+# [![             → ConditionalSect (Extended)
+# [*Name]         → AliasElement (Extended)
+#
+# ANCHOR vs ENTITY_REF disambiguation: lookahead for ';' after the name.
+# MERGE vs unquoted body text starting with *: MERGE requires Name immediately
+# after * with no whitespace, inside ElementMeta position only.
+# TRIPLE_QUOT vs QUOTED: lexer checks for ''' before ' — three-char lookahead.
+
+# ─── Notes ────────────────────────────────────────────────────────────────────
+
+# Whitespace normalization applies to unquoted body tokens only (rule [5]).
+# Attribute values (BareValue) are subject to scalar auto-typing [55a] but
+# not to whitespace normalization — their literal content is preserved.
+
+# Raw text uses #] as its two-character terminator (rule [31]).
+# A bare ] is allowed inside raw text. The sequence #] is not.
+# XML emission: ]]> in raw content must be split — see rule [31].
+
+# TripleQuoted uses ''' as its three-character terminator (rule [10b]).
+# Single and double quotes are allowed unescaped inside. Use \' to prevent
+# early termination; \'\'\' embeds a literal ''' in content.
+
+# BlockContent [|...] uses ] as its terminator with normal bracket counting
+# (rule [28]). The [| opener signals literal-newline mode to the parser.
+# A ] at the correct nesting depth closes the block.
+
+# Auto-typing is scoped:
+#   Scalar: single-token element bodies (rule [25]).
+#   Array:  multi-token homogeneous non-string element bodies (rule [25a]).
+#   Attr:   scalar only on BareValue attribute values (rule [55a]).
+# Prose-heavy elements and string bodies never produce surprise Scalar/Array nodes.
+
+# Short type aliases (rule [26a]): i=int  f=float  b=bool  s=string  d=date  dt=datetime
+# Canonical output always uses long forms. Parsers accept both everywhere.
+
+# Anchors (&name without semicolon) are CX Extended.
+# EntityRefs (&name; with semicolon) are CX Core.
+
+# MultiDoc (---) is CX Extended.
+# Scalar, TypeAnnotation, TripleQuoted, BlockContent are CX Extended.
+# DTD schema declarations (ElementDecl, AttlistDecl, NotationDecl,
+# ConditionalSect) are CX Extended. EntityDecl is CX Core.
+# See Conventions section for the rationale.

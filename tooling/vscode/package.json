@@ -1,0 +1,56 @@
+{
+  "name": "cx-language",
+  "displayName": "CX Language",
+  "description": "Syntax highlighting and completions for CX markup/configuration",
+  "version": "0.2.0",
+  "publisher": "cx",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "cx",
+        "aliases": ["CX", "cx"],
+        "extensions": [".cx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cx",
+        "scopeName": "source.cx",
+        "path": "./syntaxes/cx.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.json":       "json",
+          "meta.embedded.block.xml":        "xml",
+          "meta.embedded.block.css":        "css",
+          "meta.embedded.block.html":       "html",
+          "meta.embedded.block.javascript": "javascript",
+          "meta.embedded.block.typescript": "typescript",
+          "meta.embedded.block.python":     "python",
+          "meta.embedded.block.bash":       "shellscript",
+          "meta.embedded.block.sql":        "sql",
+          "meta.embedded.block.yaml":       "yaml",
+          "meta.embedded.block.toml":       "toml",
+          "meta.embedded.block.cx":         "cx"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.5",
+    "@vscode/vsce": "^2.24.0"
+  }
+}

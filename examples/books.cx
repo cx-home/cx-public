@@ -1,0 +1,20 @@
+[library
+  [book
+    [title The Hobbit]
+    [author J.R.R. Tolkien]
+    [year :int 1937]
+    [available true]
+  ]
+  [book
+    [title Dune]
+    [author Frank Herbert]
+    [year :int 1965]
+    [available false]
+  ]
+  [book
+    [title Neuromancer]
+    [author William Gibson]
+    [year :int 1984]
+    [available true]
+  ]
+]
